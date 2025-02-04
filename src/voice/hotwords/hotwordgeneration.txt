@@ -1,0 +1,1 @@
+python -m eff_word_net.generate_reference --input-dir C:\Projects\assistant\src\python\hotwords\gilles --output-dir C:\Projects\assistant\src\python\hotwords\gilles --wakeword gilles --model-type resnet_50_arc

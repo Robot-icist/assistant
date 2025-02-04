@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net8.0</TargetFramework>
+		<Configurations>Mic.Debug;Mic.Release</Configurations>
+		<Platforms>x64</Platforms>
+		<PublishSingleFile>true</PublishSingleFile>
+		<SelfContained>false</SelfContained>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+		<RuntimeIdentifier>osx-x64</RuntimeIdentifier>
+		<DebugType>embedded</DebugType>
+	</PropertyGroup>
+	
+	<PropertyGroup Condition="'$(Configuration)' == 'Mic.Debug' Or '$(Configuration)' == 'Mic.Release'">
+		<StartupObject>PorcupineC#.Mic</StartupObject>
+		<TargetName>PorcupineMic</TargetName>
+		<AssemblyName>PorcupineMic</AssemblyName>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="OpenTK" Version="4.0.1" />
+		<PackageReference Include="Porcupine" Version="1.9.0" />
+	</ItemGroup>
+
+</Project>

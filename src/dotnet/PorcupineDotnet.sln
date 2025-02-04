@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.9.34728.123
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PorcupineDotnet", "PorcupineDotnet\PorcupineDotnet.csproj", "{5AE5D341-BE0B-4E35-A4F0-CBCD339C844E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Mic.Debug|x64 = Mic.Debug|x64
+		Mic.Release|x64 = Mic.Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5AE5D341-BE0B-4E35-A4F0-CBCD339C844E}.Mic.Debug|x64.ActiveCfg = MicDebug|x64
+		{5AE5D341-BE0B-4E35-A4F0-CBCD339C844E}.Mic.Debug|x64.Build.0 = Mic.Debug|x64
+		{5AE5D341-BE0B-4E35-A4F0-CBCD339C844E}.Mic.Release|x64.ActiveCfg = Mic.Release|x64
+		{5AE5D341-BE0B-4E35-A4F0-CBCD339C844E}.Mic.Release|x64.Build.0 = Mic.Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {718FE840-6F27-4751-957F-382E9780BBFC}
+	EndGlobalSection
+EndGlobal

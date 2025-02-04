@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Particle Sphere Spectrogram Visualization</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+
+  <body>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
+      defer
+    ></script>
+    <script>
+      let scene, camera, renderer, particles, analyser, dataArray, bufferLength;
+      let audioContext, microphone, gainNode;
+      let waveNumber = 5,
+        intensity = 1,
+        sphereColor = "green",
+        accentColor = "blue"; // Color strings instead of hex
+      let lightingEffect = false;
+      let particleCount = 25000,
+        particleSize = 0.01,
+        radius = 2;
+
+      // Start Audio context after user click
+      const fn = () => {
+        document.removeEventListener("click", fn);
+        startAudio();
+      };
+      document.addEventListener("click", fn);
+
+      function startAudio() {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Resume AudioContext on first user interaction (click)
+        if (audioContext.state === "suspended") {
+          audioContext.resume();
+        }
+
+        setupAudio();
+        setupScene();
+        updateVisualization();
+      }
+
+      // Audio setup
+      function setupAudio() {
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        // analyser.fftSize = 32;
+        bufferLength = analyser.frequencyBinCount;
+        dataArray = new Uint8Array(bufferLength);
+
+        // Microphone input
+        navigator.mediaDevices
+          .getUserMedia({ audio: true })
+          .then(function (stream) {
+            microphone = audioContext.createMediaStreamSource(stream);
+            gainNode = audioContext.createGain();
+            microphone.connect(gainNode);
+            gainNode.connect(analyser);
+          })
+          .catch(function (err) {
+            console.log("Error accessing the microphone: " + err);
+          });
+      }
+
+      // Create a sphere made of particles
+      function createParticleSphere() {
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+
+        // Create particles on the surface of a sphere
+        for (let i = 0; i < particleCount; i++) {
+          const theta = Math.random() * Math.PI * 2;
+          const phi = Math.acos(2 * Math.random() - 1);
+          const x = radius * Math.sin(phi) * Math.cos(theta);
+          const y = radius * Math.sin(phi) * Math.sin(theta);
+          const z = radius * Math.cos(phi);
+
+          positions[i * 3] = x;
+          positions[i * 3 + 1] = y;
+          positions[i * 3 + 2] = z;
+        }
+
+        geometry.setAttribute(
+          "position",
+          new THREE.BufferAttribute(positions, 3)
+        );
+
+        // Use THREE.Color() to convert the string color values to proper color format
+        const material = new THREE.PointsMaterial({
+          color: new THREE.Color(sphereColor),
+          size: particleSize,
+        });
+        particles = new THREE.Points(geometry, material);
+        scene.add(particles);
+      }
+
+      // Scene setup
+      function setupScene() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(
+          75,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          1000
+        );
+        camera.position.z = 5;
+
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Lights
+        const light = new THREE.AmbientLight(0x404040); // Ambient light
+        scene.add(light);
+        if (lightingEffect) {
+          const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+          pointLight.position.set(0, 0, 5);
+          scene.add(pointLight);
+        }
+
+        createParticleSphere();
+      }
+
+      // Generate random wave positions
+      function generateWaves() {
+        const waveCenters = [];
+        for (let i = 0; i < waveNumber; i++) {
+          const theta = Math.random() * Math.PI * 2;
+          const phi = Math.acos(2 * Math.random() - 1);
+          const x = radius * Math.sin(phi) * Math.cos(theta);
+          const y = radius * Math.sin(phi) * Math.sin(theta);
+          const z = radius * Math.cos(phi);
+          waveCenters.push({ x, y, z });
+        }
+        return waveCenters;
+      }
+
+      // Reproject a point back to the sphere's surface
+      function constrainToSphere(x, y, z) {
+        const dist = Math.sqrt(x * x + y * y + z * z);
+        const scale = radius / dist;
+        return { x: x * scale, y: y * scale, z: z * scale };
+      }
+
+      // Update visualization
+      function updateVisualization() {
+        analyser.getByteFrequencyData(dataArray);
+
+        // Generate wave positions based on sound
+        const waveCenters = generateWaves();
+
+        // Calculate average frequency and apply intensity setting
+        const avgFrequency =
+          dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+        const intensityFactor = Math.pow(intensity, 2); // Intensity factor squared for more dramatic effect
+
+        // Modify color intensity
+        const colorIntensity = avgFrequency / 255;
+        particles.material.color
+          .set(new THREE.Color(sphereColor))
+          .lerp(new THREE.Color(accentColor), colorIntensity);
+
+        // Move particles based on waves and frequency data, scaled by intensity
+        const positions = particles.geometry.attributes.position.array;
+        for (let i = 0; i < particleCount; i++) {
+          // Get particle position
+          const x = positions[i * 3];
+          const y = positions[i * 3 + 1];
+          const z = positions[i * 3 + 2];
+
+          // For each wave center, calculate how the particle is affected
+          waveCenters.forEach((center) => {
+            const dist = Math.sqrt(
+              (x - center.x) ** 2 + (y - center.y) ** 2 + (z - center.z) ** 2
+            );
+            const wave =
+              Math.sin(Date.now() * 0.005 + dist * 5) *
+              avgFrequency *
+              intensityFactor *
+              0.02; // Wave effect scaled by intensity
+            // Apply wave effect
+            const dx = (wave * (x - center.x)) / dist;
+            const dy = (wave * (y - center.y)) / dist;
+            const dz = (wave * (z - center.z)) / dist;
+            positions[i * 3] += dx;
+            positions[i * 3 + 1] += dy;
+            positions[i * 3 + 2] += dz;
+          });
+
+          // Reproject particles back to the surface of the sphere
+          const {
+            x: newX,
+            y: newY,
+            z: newZ,
+          } = constrainToSphere(
+            positions[i * 3],
+            positions[i * 3 + 1],
+            positions[i * 3 + 2]
+          );
+          positions[i * 3] = newX;
+          positions[i * 3 + 1] = newY;
+          positions[i * 3 + 2] = newZ;
+        }
+
+        particles.geometry.attributes.position.needsUpdate = true;
+
+        // Render the scene
+        renderer.render(scene, camera);
+        requestAnimationFrame(updateVisualization);
+      }
+
+      // Handle window resize
+      window.addEventListener("resize", () => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+      });
+
+      // Configuration options
+      function configure(settings) {
+        waveNumber = settings.waveNumber || waveNumber;
+        intensity = settings.intensity || intensity;
+        sphereColor = settings.sphereColor || sphereColor; // Accept color strings
+        accentColor = settings.accentColor || accentColor; // Accept color strings
+        lightingEffect = settings.lightingEffect || lightingEffect;
+      }
+
+      // Example of configuration (could be from a UI)
+      configure({
+        waveNumber: 10, // Number of waves
+        intensity: 0.5, // Intensity of the visualization
+        sphereColor: "cyan", // Base color of the sphere as string
+        accentColor: "white", // Accent color as string
+        lightingEffect: true, // Enable lighting
+      });
+    </script>
+  </body>
+</html>

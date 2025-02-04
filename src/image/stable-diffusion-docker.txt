@@ -1,0 +1,32 @@
+////COPY THIS ONE
+docker run --gpus all --restart unless-stopped -p 8080:8080 -v C:/Projects/stable-docker/extensions:/app/stable-diffusion-webui/extensions -v C:/Projects/stable-docker/models:/app/stable-diffusion-webui/models -v C:/Projects/stable-docker/outputs:/app/stable-diffusion-webui/outputs -v C:/Projects/stable-docker/localizations:/app/stable-diffusion-webui/localizations --name stable-diffusion-webui -d universonic/stable-diffusion-webui --api
+
+
+////HERE IS TO SHOW ALL
+docker run --gpus all --restart unless-stopped -p 8080:8080 
+-v C:/Projects/stable-docker/extensions:/app/stable-diffusion-webui/extensions 
+-v C:/Projects/stable-docker/models:/app/stable-diffusion-webui/models 
+-v C:/Projects/stable-docker/outputs:/app/stable-diffusion-webui/outputs 
+-v C:/Projects/stable-docker/localizations:/app/stable-diffusion-webui/localizations 
+--name stable-diffusion-webui 
+-d universonic/stable-diffusion-webui 
+--api
+
+//clean docker vhd 
+diskpart
+DISKPART> select vdisk "C:\Users\Gille\AppData\Local\Docker\wsl\disk\docker_data.vhdx"
+
+Les arguments spécifiés pour cette commande ne sont pas valides.
+Pour plus d’informations sur la commande, entrez : HELP SELECT VDISK
+
+DISKPART> select vdisk file="C:\Users\Gille\AppData\Local\Docker\wsl\disk\docker_data.vhdx"
+
+DiskPart a correctement sélectionné le fichier de disque virtuel.
+
+DISKPART> compact vdisk
+
+  100 pour cent effectués
+
+DiskPart a correctement compacté le fichier de disque virtuel.
+
+DISKPART>

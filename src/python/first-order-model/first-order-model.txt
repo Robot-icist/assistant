@@ -1,0 +1,1 @@
+python first_order_model.py  --config config/vox-256.yaml --driving_video C:\Projects\assistant\src\python\speech-driven-animation\generated.mp4 --source_image C:\Projects\assistant\src\image\faces\nineycropped.bmp --checkpoint C:\Projects\first-order-model\vox-cpk.pth.tar  --relative --adapt_scale --audio
