@@ -42,8 +42,9 @@ const displayText = (
   else textDisplay.textContent = text;
 
   textDisplay.style.opacity = "1";
-  textDisplay.style.top = "33vh"; // Move to the third
-
+  if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent))
+    textDisplay.style.top = "30vh";
+  else textDisplay.style.top = "33vh"; // Move to the third
   // Scroll to the bottom of the text content to show the latest part
   textDisplay.scrollTop = textDisplay.scrollHeight;
   textDisplay.scrollLeft = textDisplay.scrollWidth;
@@ -124,9 +125,11 @@ function hideLoader() {
 }
 
 function createStopButton(onClick) {
-  const button = document.createElement("button");
+  //hideStopButton();
+  button = document.createElement("button");
   button.id = "stop";
-  button.innerHTML = "🛑";
+  // button.innerHTML = "🛑";
+  button.innerHTML = "◻️";
   button.style.all = "unset";
   button.style.cursor = "pointer";
   button.style.position = "fixed";
@@ -134,7 +137,7 @@ function createStopButton(onClick) {
   button.style.bottom = "0";
   button.style.left = "0";
   button.style.width = "100%";
-  button.style.height = "30vh";
+  button.style.height = "20vh";
   button.style.display = "flex";
   button.style.justifyContent = "center";
   button.style.alignItems = "center";

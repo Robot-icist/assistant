@@ -109,7 +109,7 @@ async function takePicture(facingMode = "user") {
     img.addEventListener("click", () => {
       img.remove();
     });
-    setTimeout(() => img.remove(), 30000);
+    //setTimeout(() => img.remove(), 30000);
   } catch (err) {
     console.error(err.message);
   }

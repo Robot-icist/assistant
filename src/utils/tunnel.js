@@ -44,16 +44,16 @@ export const tunnel = async () => {
       [
         path.resolve(__dirname, "../python/pagekite.py"),
         "80",
-        "personalassistant.pagekite.me",
+        "ws-passistant.pagekite.me",
         "AND",
         "1234",
-        "front-personalassistant.pagekite.me",
+        "passistant.pagekite.me",
         // "+ip/92.184.112=ok",
       ],
       console.log
     );
   } else {
-    await makeLocalTunnel(80, "personalassistant");
-    await makeLocalTunnel(1234, "frontpersonalassistant");
+    await makeLocalTunnel(80, "wspassistant");
+    await makeLocalTunnel(1234, "passistant");
   }
 };

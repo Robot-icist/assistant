@@ -41,13 +41,10 @@ export const startWs = () => {
         if (!isBinary) {
           const json = JSON.parse(data);
           console.log(JSON.stringify(json, null, 2));
-          // if (!json.ip || !json.ip.includes("92.184")) return ws.close();
           if (json.speaker != null) setSpeakerId(parseInt(json.speaker, 10));
-          if (json.video != null)
-            setVideo(parseInt(json.video, 10) === 1 ? true : false);
+          if (json.video != null) setVideo(json.video);
           if (json.lang != null) setLang(json.lang);
-          if (json.google != null)
-            setGoogle(parseInt(json.google, 10) === 1 ? true : false);
+          if (json.google != null) setGoogle(json.google);
           if (json.llm != null) setLLM(json.llm);
           if (json.text != null) {
             sendToAll("loading:true");

@@ -130,8 +130,16 @@ window.addEventListener("load", () => {
     hideLoader();
     hideStopButton();
   });
+  WS.events.subscribe("playing", () => createStopButton(stopProcessing));
+  WS.events.subscribe("played", () => hideStopButton());
+  WS.events.subscribe("stop", () => {
+    WS.mediaQueue = [];
+    stopPlaying();
+    hideStopButton();
+  });
   document.getElementsByTagName("canvas")[0].addEventListener("click", (e) => {
     e.preventDefault();
     stopPlaying();
+    hideStopButton();
   });
 });

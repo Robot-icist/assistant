@@ -37,13 +37,14 @@ const params = {
   radius: 0.2,
   threshold: 0.3,
   details: 30,
+  size: 4,
   wakeword: "Jarvis",
   model: "vosk-model-small-fr-pguyot-0.3.tar.gz",
   llm: "llama3.2",
   speaker: 0,
-  video: 0,
-  google: 0,
-  alwayson: 0,
+  video: false,
+  google: false,
+  alwayson: false,
 };
 
 export const getParams = () => params;
@@ -83,7 +84,7 @@ const mat = new THREE.ShaderMaterial({
   fragmentShader: document.getElementById("fragmentshader").textContent,
 });
 
-let geo = new THREE.IcosahedronGeometry(4, params.details);
+let geo = new THREE.IcosahedronGeometry(params.size, params.details);
 let mesh = new THREE.Mesh(geo, mat);
 scene.add(mesh);
 mesh.material.wireframe = true;
@@ -213,9 +214,17 @@ bloomFolder.add(params, "radius", 0, 1, 0.1).onChange((value) => {
 });
 
 const detailsFolder = gui.addFolder("Details");
+detailsFolder.add(params, "size", 1, 10, 0.1).onChange((value) => {
+  scene.remove(mesh);
+  geo = new THREE.IcosahedronGeometry(value, params.details);
+  mesh = new THREE.Mesh(geo, mat);
+  scene.add(mesh);
+  mesh.material.wireframe = true;
+  params.size = Number(value);
+});
 detailsFolder.add(params, "details", 0, 50, 1).onChange((value) => {
   scene.remove(mesh);
-  geo = new THREE.IcosahedronGeometry(4, value);
+  geo = new THREE.IcosahedronGeometry(params.size, value);
   mesh = new THREE.Mesh(geo, mat);
   scene.add(mesh);
   mesh.material.wireframe = true;
@@ -261,17 +270,17 @@ assistantFolder.add(params, "speaker", 0, 10, 1).onChange((value) => {
   params.speaker = value;
 });
 
-assistantFolder.add(params, "video", 0, 1, 1).onChange((value) => {
+assistantFolder.add(params, "video").onChange((value) => {
   params.video = value;
 });
 
-assistantFolder.add(params, "google", 0, 1, 1).onChange((value) => {
+assistantFolder.add(params, "google").onChange((value) => {
   params.google = value;
 });
 
-assistantFolder.add(params, "alwayson", 0, 1, 1).onChange(async (value) => {
+assistantFolder.add(params, "alwayson").onChange(async (value) => {
   params.alwayson = value;
-  if (value == 1) {
+  if (value) {
     stopVoiceRecognition();
     await processCallback(params.wakeword);
   }

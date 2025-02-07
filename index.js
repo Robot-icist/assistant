@@ -121,6 +121,7 @@ export const Stop = () => {
   stopStream();
   setProcessing(false);
   sendToAll("loading:false");
+  sendToAll("stop:true");
 };
 
 export const logic = async (recognizedText) => {

@@ -52,6 +52,9 @@ class WebSocketHandler {
         let loading = event.data.split("loading:").pop();
         this.events.emit(loading == "true" ? "loading" : "unloading");
       }
+      if (event.data.includes("stop:")) {
+        this.events.emit("stop");
+      }
       if (this.callbacks.length > 0)
         for (let cb of this.callbacks) {
           cb(event.data, false);
@@ -105,6 +108,7 @@ class WebSocketHandler {
     }
 
     this.isPlaying = true;
+    WS.events.emit("playing");
     const { buffer, type } = this.mediaQueue.shift();
     const blob = new Blob([buffer], { type });
     const url = URL.createObjectURL(blob);
@@ -148,12 +152,14 @@ class WebSocketHandler {
       document.body.appendChild(mediaElement);
 
       mediaElement.onended = () => {
+        WS.events.emit("played");
         //document.body.removeChild(mediaElement);
         URL.revokeObjectURL(url);
         this.playNextMedia();
       };
 
       mediaElement.onerror = () => {
+        WS.events.emit("played");
         console.error("Media failed to load:", mediaElement.error);
         alert("Failed to play media. Downloading instead...");
         window.location.href = url;
@@ -167,5 +173,5 @@ class WebSocketHandler {
   }
 }
 const pageKite = true;
-if (pageKite) WS = new WebSocketHandler("wss://personalassistant.pagekite.me");
-else WS = new WebSocketHandler("wss://personalassistant.loca.lt");
+if (pageKite) WS = new WebSocketHandler("wss://ws-passistant.pagekite.me");
+else WS = new WebSocketHandler("wss://passistant.loca.lt");
