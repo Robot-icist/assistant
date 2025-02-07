@@ -20,6 +20,7 @@ import {
 import { runPowerShellAsAdmin } from "../utils/processRunner.js";
 import path from "path";
 import { fileURLToPath } from "url";
+import { getProcessing } from "../../index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name of the directory
 
@@ -54,6 +55,8 @@ const images = [
   "C:/Projects/assistant/src/image/pictures/robert/robdoe.jpeg",
   "C:/Projects/assistant/src/image/pictures/liam/liamneeson.jpg",
   "C:/Projects/assistant/src/image/pictures/scarlett/scarlett.jpeg",
+  "C:/Projects/assistant/src/image/pictures/brad/brad.jpg",
+  "C:/Projects/assistant/src/image/pictures/eddie/eddie.jpg",
   "C:/Projects/assistant/src/image/pictures/gilles/gilles.bmp",
   "C:/Projects/assistant/src/image/pictures/axel/telechargement(1).jpg",
   "C:/Projects/assistant/src/image/pictures/axel/telechargement.jpg",
@@ -64,6 +67,8 @@ const wavs = [
   "C:\\Projects\\assistant\\src\\python\\wavs\\weapon.wav",
   "C:\\Projects\\assistant\\src\\python\\wavs\\liamneeson.wav",
   "C:\\Projects\\assistant\\src\\python\\wavs\\scarlett.wav",
+  "C:\\Projects\\assistant\\src\\python\\wavs\\brad.wav",
+  "C:\\Projects\\assistant\\src\\python\\wavs\\medhondo.wav",
   "C:\\Projects\\assistant\\src\\python\\wavs\\gilles20.wav",
   "C:\\Projects\\assistant\\src\\python\\wavs\\voixaxel2.wav",
   "C:\\Projects\\assistant\\src\\python\\wavs\\voixaxel.wav",
@@ -89,7 +94,9 @@ export const setVideo = (val) => {
 
 let resolves = [];
 
-deleteDir(path.resolve(__dirname, "../python/sadtalker/results"));
+const resultsPath = path.resolve(__dirname, "../python/sadtalker/results");
+
+deleteDir(resultsPath);
 
 firstOrderModelProcess.events.on("done", (data) => {
   if (!video) return;
@@ -118,20 +125,13 @@ videoGenerationProcess.events.on("done", (data) => {
 sadTalkerProcess.events.on("done", async (data) => {
   if (!video) return;
   let filepath = data.split("\\").pop();
-  let videoPath = path.resolve(
-    __dirname,
-    "../python/sadtalker/results",
-    filepath
-  );
-  let convertedPath = path.resolve(
-    __dirname,
-    "../python/sadtalker/results",
-    "converted.mp4"
-  );
+  let videoPath = path.resolve(resultsPath, filepath);
+  let convertedPath = path.resolve(resultsPath, "converted.mp4");
   console.log("received sadtalker event done", data, filepath, videoPath);
   let resolve = resolves.shift();
 
   await convertToH264(videoPath, convertedPath);
+
   process.env.MUTE &&
     fs.readFile(convertedPath, (err, data) => {
       if (err) {
@@ -153,7 +153,7 @@ ttsProcess.events.on("done", async (data) => {
   console.timeEnd(resolve?.timeName);
   if (!video && !process.env.MUTE) playAudio(audioOutputPath);
   // Read the WAV file as a buffer
-  if (process.env.MUTE && !video)
+  if (process.env.MUTE && !video && getProcessing())
     fs.readFile(audioOutputPath, (err, data) => {
       if (err) {
         console.error("\nError reading the WAV file:", err);
@@ -165,10 +165,10 @@ ttsProcess.events.on("done", async (data) => {
     });
 
   if (!video) {
-    resolve.resolve();
+    resolve?.resolve();
     return;
   }
-
+  if (!getProcessing()) return resolve?.resolve();
   const fileBuffer = await fs.promises.readFile(audioOutputPath);
   const tempfile = await createTempFileFromBuffer(fileBuffer, "wav");
   const timeName = `video:${resolve.text}`;
@@ -194,7 +194,7 @@ ttsProcess.events.on("done", async (data) => {
 });
 
 export async function speak(text, speakerId = sourceId) {
-  if (text.trim() === "") return;
+  if (text.trim() === "" || !getProcessing()) return;
   setSpeakerId(speakerId);
   await sleep(300);
   return new Promise((resolve, reject) => {

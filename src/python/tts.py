@@ -54,7 +54,7 @@ print(device)
 # print(all_models)
 
 print("Loading TTS model...")
-tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False).to(device)
+tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=True).to(device)
 # tts = TTS("tts_models/multilingual/multi-dataset/your_tts").to(device)
 # tts = TTS(model_name="tts_models/fr/mai/tacotron2-DDC").to(device) 
 # tts = TTS(model_name="tts_models/fr/css10/vits").to(device) 

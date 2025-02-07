@@ -1,10 +1,10 @@
 import { changeColor, getParams } from "./icosahedron.js";
-import { sendParams } from "./main.js";
+import { sendParams, stopProcessing } from "./main.js";
 
 const SENSITIVITIES = new Float32Array([0.75]);
 
-let processCallback = async (keyword) => {
-  console.log("Recognized Keyword:", keyword);
+export const processCallback = async (wakeword) => {
+  console.log("Recognized WakeWord:", wakeword);
   changeColor("gold");
   const params = getParams();
   await startVoiceRecognition("/scripts/" + params.model, async (data) => {
@@ -22,16 +22,9 @@ let processCallback = async (keyword) => {
         data.text.toLowerCase().includes("front");
 
       return await takePicture(front ? "user" : "environment");
-    }
-    WS.send(
-      JSON.stringify({
-        text: data.text,
-        lang: params.model.includes("fr") ? "fr" : "en",
-        speaker: params.speaker,
-        video: params.video,
-        google: params.google,
-      })
-    );
+    } else if (data.text.toLowerCase().includes("stop")) {
+      stopProcessing();
+    } else sendParams(data.text);
   });
 };
 
@@ -55,7 +48,7 @@ export const startWakewordRecognition = () => {
       "/node_modules/@picovoice/web-voice-processor/src/downsampling_worker.js"
     );
     started = true;
-    console.log("Wakeword Recognition Started");
+    console.log("WakeWord Recognition Started");
   } catch (error) {
     console.log("Porcupine start handled error:", error);
   }
@@ -66,10 +59,8 @@ export const stopWakewordRecognition = function () {
   try {
     PorcupineManager.stop();
     started = false;
-    console.log("Wakeword Recognition Stopped");
+    console.log("WakeWord Recognition Stopped");
   } catch (error) {
     console.log("Porcupine stop handled error:", error);
   }
 };
-
-startWakewordRecognition();

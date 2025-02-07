@@ -30,7 +30,7 @@ import { exec } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
 import { stopMicRecognition } from "../voice/recognition.js";
-import { setProcessing } from "../../index.js";
+import { Kill, setProcessing, Stop } from "../../index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -165,66 +165,20 @@ keyboardListener.addListener((event) => {
 //Capture CTRL + C
 keyboardListener.addListener(async function (e, down) {
   if (e.state == "DOWN" && e.name == "C" && down["LEFT CTRL"]) {
-    if (process.env.TTS) {
-      await new Promise((res, rej) => {
-        exec("taskkill /f /im python.exe", (error, stdout, stderr) => {
-          if (error) {
-            console.error(`exec error: ${error}`);
-            rej(error);
-            return;
-          }
-          console.log(`stdout: ${stdout}`);
-          console.error(`stderr: ${stderr}`);
-          res();
-        });
-      });
-    }
-    process.kill(process.pid, "SIGINT");
-    // return true;
+    Kill();
   }
 });
 
 //Capture CTRL + S
 keyboardListener.addListener(async function (e, down) {
   if (e.state == "DOWN" && e.name == "S" && down["LEFT CTRL"]) {
-    // setProcessing(false);
-    // stopMicRecognition();
-    // if (process.env.TTS) {
-    //   await new Promise((res, rej) => {
-    //     exec("taskkill /f /im python.exe", (error, stdout, stderr) => {
-    //       if (error) {
-    //         console.error(`exec error: ${error}`);
-    //         // rej(error);
-    //         return;
-    //       }
-    //       console.log(`stdout: ${stdout}`);
-    //       console.error(`stderr: ${stderr}`);
-    //       res();
-    //     });
-    //   });
-    // } else await stopSpeaking();
+    Stop();
   }
 });
 
 //Capture CTRL + K
 keyboardListener.addListener(async function (e, down) {
   if (e.state == "DOWN" && e.name == "K" && down["LEFT CTRL"]) {
-    setProcessing(false);
-    stopMicRecognition();
-    if (process.env.TTS) {
-      await new Promise((res, rej) => {
-        exec("taskkill /f /im python.exe", (error, stdout, stderr) => {
-          if (error) {
-            console.error(`exec error: ${error}`);
-            // rej(error);
-            return;
-          }
-          console.log(`stdout: ${stdout}`);
-          console.error(`stderr: ${stderr}`);
-          res();
-        });
-      });
-    } else await stopSpeaking();
   }
 });
 

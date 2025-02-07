@@ -31,6 +31,8 @@ export const getGoogle = () => google;
 
 export const setGoogle = (val) => (google = val);
 
+let keepInMemory = true;
+
 // const result = await model.generateContent([prompt, image]);
 // console.log(result.response.text());
 
@@ -53,7 +55,7 @@ const systemInstructions = () =>
   getLang() == "fr"
     ? `Tu t'appels ${hotword}. 
           Tu es un assistant virtuel sur ordinateur, 
-          tu fais des phrases pas trop longues et tu réponds a toutes mes demande et termine chacune de tes réponses par le mot "Patron !".`
+          tu fais des phrases courtes et tu réponds a toutes mes demandes et termine chacunes de tes réponses par le mot "Patron !".`
     : `Your Name is ${hotword}. 
           You are a virtual assistant on a computer, 
           you make small sentences and you reply to all my demands and terminate every of your answers with the word "Boss !".`;
@@ -68,6 +70,16 @@ let conversationHistory = [
 
 let conversationHistoryGemini = [];
 
+let stream;
+let abortController = new AbortController();
+export const stopStream = () => {
+  stream?.abortController?.abort();
+  abortController?.abort();
+};
+
+let llm = "llama3.2:1b";
+
+export const setLLM = (val) => (llm = val);
 /**
  * Generates and speaks a response using Ollama's LLM.
  *
@@ -75,14 +87,14 @@ let conversationHistoryGemini = [];
  * @param {function} speak - The function to speak the generated response.
  * @param {function} cb - The callback.
  */
-export async function ollamaChat(text, speak, model = "llama3.2") {
+export async function ollamaChat(text, speak, model = llm) {
   try {
     if (text == "") return;
-    console.log("Generating response for:", text);
+    console.log("Generating response for:", text, model);
 
     // Add user input to conversation history
     if (!google) {
-      if (conversationHistory.length > 5)
+      if (conversationHistory.length > 10)
         conversationHistory = conversationHistory.slice(0, 1);
       if (conversationHistory[0].content != systemInstructions()) {
         conversationHistory[0] = {
@@ -93,7 +105,7 @@ export async function ollamaChat(text, speak, model = "llama3.2") {
       }
       conversationHistory.push({ role: "user", content: text });
     } else {
-      if (conversationHistoryGemini.length > 5)
+      if (conversationHistoryGemini.length > 10)
         conversationHistoryGemini = conversationHistoryGemini.slice(0, 1);
       conversationHistoryGemini.push({ role: "user", parts: [{ text }] });
     }
@@ -105,21 +117,17 @@ export async function ollamaChat(text, speak, model = "llama3.2") {
     );
 
     let accumulatedText = "";
-    let stream = null;
+    // let stream = null;
     // const stream = await ollamaInstance.generate({
     if (!google)
       stream = await ollamaInstance.chat({
         model: model,
-        // model: 'llama2-uncensored',
-        // model: "llama3.2",
-        // model: "qwen2.5",
-        // model: "phi3",
-        // model: "deepseek-r1:1.5b",
         // prompt: conversationHistory[0].content
         messages: conversationHistory,
         stream: true,
-        // keep_alive: -1, // keep loaded
-        keep_alive: 0, // unload after
+        //keep_alive: -1, // keep loaded
+        // keep_alive: 0, // unload after
+        keep_alive: keepInMemory ? -1 : 0,
         options: {
           temperature: getEvil() ? 0.8 : 0,
         },
@@ -132,12 +140,14 @@ export async function ollamaChat(text, speak, model = "llama3.2") {
       const chat = gemini.startChat({
         history: conversationHistoryGemini,
       });
-      const result = await chat.sendMessageStream(text);
+      const result = await chat.sendMessageStream(text, {
+        signal: abortController.signal,
+      });
       stream = result.stream;
     }
+    console.log(Object.keys(stream));
 
     for await (const chunk of stream) {
-      // console.log(part);
       // // for generate
       // process.stdout.write(chunk.response);
       // accumulatedText += chunk.response;
@@ -212,47 +222,44 @@ export async function ollamaChat(text, speak, model = "llama3.2") {
 export async function ollamaVision(basePrompt, speak, bytes) {
   try {
     if (basePrompt == "") return;
+    let screenshotPath, webcamPath;
+    if (bytes == null) {
+      LOG("Capturing the screen...");
+      const fileName = "screenshot";
+      const fileFormat = FileType.JPG;
+      const filePath = join(__dirname, "screenshots"); // Directory for screenshot
+      // Ensure output directory exists
+      await promises.mkdir(filePath, { recursive: true });
+      // await camera.videoCapture.pause();
+      await camera.initialize();
+      // Capture the screenshot
+      screenshotPath = await screen.capture(fileName, fileFormat, filePath);
+      LOG(`Screenshot captured and saved to: ${screenshotPath}`);
+      webcamPath = filePath + "/webcam.jpg";
+      await takePictureJpeg(webcamPath);
+      await camera.stop();
+      // await camera.videoCapture.start();
+      // await camera.videoCapture.resume();
+      console.log("\nSending request to llm vision model...");
+      // await camera.videoCapture.pause();
+    }
 
-    // LOG("Capturing the screen...");
-
-    // const fileName = "screenshot";
-    // const fileFormat = FileType.JPG;
-    // const filePath = join(__dirname, "screenshots"); // Directory for screenshot
-
-    // // Ensure output directory exists
-    // await promises.mkdir(filePath, { recursive: true });
-
-    // // await camera.videoCapture.pause();
-
-    // await camera.initialize();
-    // // Capture the screenshot
-    // const screenshotPath = await screen.capture(fileName, fileFormat, filePath);
-    // LOG(`Screenshot captured and saved to: ${screenshotPath}`);
-    // const webcamPath = filePath + "/webcam.jpg";
-
-    // await takePictureJpeg(webcamPath);
-    // await camera.stop();
-    // // await camera.videoCapture.start();
-    // // await camera.videoCapture.resume();
-
-    // console.log("\nSending request to llm vision model...");
-
-    // // await camera.videoCapture.pause();
-
-    let stream;
+    //let stream;
     if (!google)
       stream = await ollamaInstance.generate({
+        model: "benzie/llava-phi-3",
         // model: "llama3.2-vision",
         // model: "llava",
-        model: "benzie/llava-phi-3",
-        prompt: basePrompt,
+        prompt: systemInstructions() + " " + basePrompt,
         // prompt: prompt,
-        // images: [screenshotPath], // Attach the screenshot
-        // images: [screenshotPath, webcamPath], // Attach the screenshot
-        images: [Buffer.from(bytes).toString("base64")], // Attach the screenshot
+        images:
+          bytes != null
+            ? [Buffer.from(bytes).toString("base64")]
+            : [screenshotPath, webcamPath], // Attach the screenshot
         stream: true,
         // keep_alive: -1, // keep
-        keep_alive: 0, // not keep
+        // keep_alive: 0, // not keep
+        keep_alive: keepInMemory ? -1 : 0,
       });
     else {
       const gemini = genAI.getGenerativeModel({
@@ -273,8 +280,11 @@ export async function ollamaVision(basePrompt, speak, bytes) {
           },
         };
         console.log(image);
-        stream = (await gemini.generateContentStream([basePrompt, image]))
-          .stream;
+        stream = (
+          await gemini.generateContentStream([basePrompt, image], {
+            signal: abortController.signal,
+          })
+        ).stream;
       }
     }
     if (stream == null) return;
@@ -337,7 +347,7 @@ export async function ollamaVision(basePrompt, speak, bytes) {
     // await camera.videoCapture.resume();
     return;
   } catch (error) {
-    console.error("Error with Ollama API:", error);
+    console.error("Error with Ollama Vision API:", error);
   }
 }
 

@@ -6,10 +6,11 @@ class WebSocketHandler {
     this.reconnectInterval = 3000;
     this.mediaQueue = [];
     this.isPlaying = false;
-    this.initWebSocket();
     this.addCallback = this.addCallback;
     this.send = this.send;
     this.events = new EventEmitter();
+    this.playNextMedia = this.playNextMedia;
+    this.initWebSocket();
   }
 
   initWebSocket() {
@@ -39,13 +40,18 @@ class WebSocketHandler {
 
   handleMessage(event) {
     if (typeof event.data === "string") {
-      displayText(
-        event.data.split("text:").pop(),
-        7500,
-        "Silkscreen",
-        true,
-        "text-display-llm"
-      );
+      if (event.data.includes("text:"))
+        displayText(
+          event.data.split("text:").pop(),
+          10000,
+          "Silkscreen",
+          true,
+          "text-display-llm"
+        );
+      if (event.data.includes("loading:")) {
+        let loading = event.data.split("loading:").pop();
+        this.events.emit(loading == "true" ? "loading" : "unloading");
+      }
       if (this.callbacks.length > 0)
         for (let cb of this.callbacks) {
           cb(event.data, false);
@@ -110,12 +116,16 @@ class WebSocketHandler {
 
     let mediaElement;
     if (type.startsWith("audio")) {
+      document.getElementById("audio")?.remove();
       mediaElement = document.createElement("audio");
+      mediaElement.id = "audio";
       mediaElement.controls = true;
       mediaElement.autoplay = true;
       mediaElement.style.display = "none";
     } else if (type.startsWith("video")) {
+      document.getElementById("video")?.remove();
       mediaElement = document.createElement("video");
+      mediaElement.id = "video";
       mediaElement.controls = false;
       mediaElement.autoplay = true;
       mediaElement.style.position = "fixed";
@@ -138,7 +148,7 @@ class WebSocketHandler {
       document.body.appendChild(mediaElement);
 
       mediaElement.onended = () => {
-        document.body.removeChild(mediaElement);
+        //document.body.removeChild(mediaElement);
         URL.revokeObjectURL(url);
         this.playNextMedia();
       };
@@ -147,10 +157,12 @@ class WebSocketHandler {
         console.error("Media failed to load:", mediaElement.error);
         alert("Failed to play media. Downloading instead...");
         window.location.href = url;
-        document.body.removeChild(mediaElement);
+        //document.body.removeChild(mediaElement);
         URL.revokeObjectURL(url);
         this.playNextMedia();
       };
+
+      mediaElement.onclick = () => mediaElement.remove();
     }
   }
 }

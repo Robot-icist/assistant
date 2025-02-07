@@ -5,6 +5,7 @@ import { RenderPass } from "/node_modules/three/examples/jsm/postprocessing/Rend
 import { UnrealBloomPass } from "/node_modules/three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "/node_modules/three/examples/jsm/postprocessing/OutputPass.js";
 import {
+  processCallback,
   startWakewordRecognition,
   stopWakewordRecognition,
 } from "./wakeword.js";
@@ -38,6 +39,7 @@ const params = {
   details: 30,
   wakeword: "Jarvis",
   model: "vosk-model-small-fr-pguyot-0.3.tar.gz",
+  llm: "llama3.2",
   speaker: 0,
   video: 0,
   google: 0,
@@ -172,48 +174,46 @@ export const changeColor = (value) => {
   uniforms.u_blue.value = threeColor.b;
   colorsFolder.updateDisplay();
 };
-
+const colors = [
+  "white",
+  "grey",
+  "deepskyblue",
+  "tomato",
+  "gold",
+  "yellowgreen",
+  "darkviolet",
+  "deeppink",
+];
 const colorsFolder = gui.addFolder("Colors");
-colorsFolder
-  .add(params, "color", [
-    "white",
-    "grey",
-    "deepskyblue",
-    "tomato",
-    "gold",
-    "yellowgreen",
-    "darkviolet",
-    "deeppink",
-  ])
-  .onChange(function (value) {
-    changeColor(value);
-  });
-colorsFolder.add(params, "red", 0, 1, 0.1).onChange(function (value) {
+colorsFolder.add(params, "color", colors).onChange((value) => {
+  changeColor(value);
+});
+colorsFolder.add(params, "red", 0, 1, 0.1).onChange((value) => {
   uniforms.u_red.value = Number(value);
   colorsFolder.updateDisplay();
 });
-colorsFolder.add(params, "green", 0, 1, 0.1).onChange(function (value) {
+colorsFolder.add(params, "green", 0, 1, 0.1).onChange((value) => {
   uniforms.u_green.value = Number(value);
   colorsFolder.updateDisplay();
 });
-colorsFolder.add(params, "blue", 0, 1, 0.1).onChange(function (value) {
+colorsFolder.add(params, "blue", 0, 1, 0.1).onChange((value) => {
   uniforms.u_blue.value = Number(value);
   colorsFolder.updateDisplay();
 });
 
 const bloomFolder = gui.addFolder("Bloom");
-bloomFolder.add(params, "threshold", 0, 1, 0.1).onChange(function (value) {
+bloomFolder.add(params, "threshold", 0, 1, 0.1).onChange((value) => {
   bloomPass.threshold = Number(value);
 });
-bloomFolder.add(params, "strength", 0, 3, 0.1).onChange(function (value) {
+bloomFolder.add(params, "strength", 0, 3, 0.1).onChange((value) => {
   bloomPass.strength = Number(value);
 });
-bloomFolder.add(params, "radius", 0, 1, 0.1).onChange(function (value) {
+bloomFolder.add(params, "radius", 0, 1, 0.1).onChange((value) => {
   bloomPass.radius = Number(value);
 });
 
 const detailsFolder = gui.addFolder("Details");
-detailsFolder.add(params, "details", 0, 50, 1).onChange(function (value) {
+detailsFolder.add(params, "details", 0, 50, 1).onChange((value) => {
   scene.remove(mesh);
   geo = new THREE.IcosahedronGeometry(4, value);
   mesh = new THREE.Mesh(geo, mat);
@@ -225,10 +225,14 @@ detailsFolder.add(params, "details", 0, 50, 1).onChange(function (value) {
 const assistantFolder = gui.addFolder("Assistant");
 assistantFolder
   .add(params, "wakeword", Object.keys(KEYWORDS_ID))
-  .onChange(async function (value) {
+  .onChange(async (value) => {
     params.wakeword = value;
-    stopWakewordRecognition();
-    startWakewordRecognition();
+    try {
+      stopWakewordRecognition();
+      startWakewordRecognition();
+    } catch (error) {
+      console.log(error);
+    }
   });
 
 assistantFolder
@@ -236,30 +240,46 @@ assistantFolder
     "vosk-model-small-fr-pguyot-0.3.tar.gz",
     "vosk-model-small-en-us-0.15.tar.gz",
   ])
-  .onChange(async function (value) {
+  .onChange(async (value) => {
     await loadModel("/scripts/" + value);
     params.model = value;
   });
 
-assistantFolder.add(params, "speaker", 0, 6, 1).onChange(function (value) {
+assistantFolder
+  .add(params, "llm", [
+    "llama3.2:1b",
+    "llama3.2",
+    "qwen2.5",
+    "phi3",
+    "deepseek-r1:1.5b",
+    "llama2-uncensored",
+  ])
+  .onChange(async (value) => {
+    params.llm = value;
+  });
+assistantFolder.add(params, "speaker", 0, 10, 1).onChange((value) => {
   params.speaker = value;
 });
 
-assistantFolder.add(params, "video", 0, 1, 1).onChange(function (value) {
+assistantFolder.add(params, "video", 0, 1, 1).onChange((value) => {
   params.video = value;
 });
 
-assistantFolder.add(params, "google", 0, 1, 1).onChange(function (value) {
+assistantFolder.add(params, "google", 0, 1, 1).onChange((value) => {
   params.google = value;
 });
 
-assistantFolder.add(params, "alwayson", 0, 1, 1).onChange(function (value) {
+assistantFolder.add(params, "alwayson", 0, 1, 1).onChange(async (value) => {
   params.alwayson = value;
+  if (value == 1) {
+    stopVoiceRecognition();
+    await processCallback(params.wakeword);
+  }
 });
 
 let mouseX = 0;
 let mouseY = 0;
-document.addEventListener("mousemove", function (e) {
+document.addEventListener("mousemove", (e) => {
   let windowHalfX = window.innerWidth / 2;
   let windowHalfY = window.innerHeight / 2;
   mouseX = (e.clientX - windowHalfX) / 100;
@@ -268,17 +288,27 @@ document.addEventListener("mousemove", function (e) {
 
 const clock = new THREE.Clock();
 
+export let mediaStream;
+
+export let mediaSource;
+
+export const stopMediaStream = () => {
+  mediaStream?.getTracks()?.forEach((track) => track?.stop());
+  mediaSource?.stop();
+};
+
 export async function processWavBuffer(arrayBuffer) {
   // Decode the buffer into an AudioBuffer
   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
   // Create an AudioBufferSourceNode
   const source = audioContext.createBufferSource();
+  mediaSource = source;
   source.buffer = audioBuffer;
 
   // Create a MediaStreamAudioDestinationNode
   const mediaStreamDestination = audioContext.createMediaStreamDestination();
-  const mediaStream = mediaStreamDestination.stream; // Obtain the MediaStream
+  mediaStream = mediaStreamDestination.stream; // Obtain the MediaStream
 
   // Connect nodes: source → analyser → destination
   source.connect(analyser);
@@ -291,7 +321,6 @@ export async function processWavBuffer(arrayBuffer) {
     }
     changeColor("deepskyblue");
   };
-
   // Start playing the audio
   source.start();
 
@@ -299,12 +328,6 @@ export async function processWavBuffer(arrayBuffer) {
     track.enabled = false;
   }
   changeColor("white");
-}
-
-export function processVoice() {
-  const microphone = audioContext.createMediaStreamSource(microphoneStream);
-  // Connect the microphone to the analyser node
-  microphone.connect(analyser);
 }
 
 function animate() {
@@ -350,19 +373,7 @@ WS.addCallback((data, isBinary, type) => {
     return;
   }
   let value = data;
-  if (
-    ![
-      "white",
-      "grey",
-      "deepskyblue",
-      "tomato",
-      "gold",
-      "yellowgreen",
-      "darkviolet",
-      "deeppink",
-    ].includes(value)
-  )
-    return;
+  if (!colors.includes(value)) return;
 
   changeColor(value);
 });

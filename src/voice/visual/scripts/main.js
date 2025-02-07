@@ -1,4 +1,33 @@
-import { changeColor, getParams } from "./icosahedron.js";
+import { changeColor, getParams, stopMediaStream } from "./icosahedron.js";
+
+export const sendParams = (text = null) => {
+  const params = getParams();
+  WS.send(
+    JSON.stringify({
+      text: text,
+      lang: params.model.includes("fr") ? "fr" : "en",
+      speaker: params.speaker,
+      video: params.video,
+      google: params.google,
+      llm: params.llm,
+    })
+  );
+};
+
+export const stopPlaying = () => {
+  stopMediaStream();
+  document.getElementById("audio")?.remove();
+  document.getElementById("video")?.remove();
+  WS.playNextMedia();
+};
+
+export const stopProcessing = () => {
+  stopPlaying();
+  WS.mediaQueue = [];
+  document.getElementById("loader")?.remove();
+  document.getElementById("stop")?.remove();
+  sendParams("stop");
+};
 
 const listenForTextInput = () => {
   let textBuffer = "";
@@ -11,7 +40,6 @@ const listenForTextInput = () => {
       textBuffer = textBuffer.slice(0, -1);
       displayText(textBuffer);
     } else if (event.key === "Enter" && textBuffer.trim() !== "") {
-      const params = getParams();
       if (
         textBuffer.toLowerCase().includes("vois") ||
         textBuffer.toLowerCase().includes("see")
@@ -21,17 +49,11 @@ const listenForTextInput = () => {
           textBuffer.toLowerCase().includes("devant") ||
           textBuffer.toLowerCase().includes("front");
 
-        return await takePicture(front ? "user" : "environment");
+        await takePicture(front ? "user" : "environment");
+      } else if (textBuffer.toLowerCase().includes("stop")) {
+        stopProcessing();
       } else {
-        WS.send(
-          JSON.stringify({
-            text: textBuffer.trim(),
-            lang: params.model.includes("fr") ? "fr" : "en",
-            speaker: params.speaker,
-            video: params.video,
-            google: params.google,
-          })
-        );
+        sendParams(textBuffer.trim());
       }
       textBuffer = "";
       displayText(textBuffer);
@@ -81,18 +103,6 @@ const enableVirtualKeyboard = () => {
 
 enableVirtualKeyboard();
 
-export const sendParams = () => {
-  const params = getParams();
-  WS.send(
-    JSON.stringify({
-      lang: params.model.includes("fr") ? "fr" : "en",
-      speaker: params.speaker,
-      video: params.video,
-      google: params.google,
-    })
-  );
-};
-
 // Function to request permission for notifications
 function requestNotificationPermission() {
   if (Notification.permission === "granted") {
@@ -108,8 +118,20 @@ function requestNotificationPermission() {
 }
 requestNotificationPermission();
 
-window.addEventListener("load", async () => {
+window.addEventListener("load", () => {
   sendParams();
   WS.events.subscribe("connected", () => changeColor("deepskyblue"));
   WS.events.subscribe("disconnected", () => changeColor("grey"));
+  WS.events.subscribe("loading", () => {
+    showLoader();
+    createStopButton(stopProcessing);
+  });
+  WS.events.subscribe("unloading", () => {
+    hideLoader();
+    hideStopButton();
+  });
+  document.getElementsByTagName("canvas")[0].addEventListener("click", (e) => {
+    e.preventDefault();
+    stopPlaying();
+  });
 });

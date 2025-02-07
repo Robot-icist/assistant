@@ -5,7 +5,7 @@ import {
   cleanupMicRecognition,
   recordAudioToFile,
 } from "./src/voice/recognition.js";
-import { ollamaChat, ollamaVision } from "./src/llm/ollama.js";
+import { ollamaChat, ollamaVision, stopStream } from "./src/llm/ollama.js";
 import { removeDiacritics, speak } from "./src/voice/speak.js";
 import {
   automation,
@@ -99,28 +99,40 @@ process.on("SIGINT", async () => {
   process.exit();
 });
 
+export const Kill = async () => {
+  if (process.env.TTS) {
+    await new Promise((res, rej) => {
+      exec("taskkill /f /im python.exe", (error, stdout, stderr) => {
+        if (error) {
+          console.error(`exec error: ${error}`);
+          rej(error);
+          return;
+        }
+        console.log(`stdout: ${stdout}`);
+        console.error(`stderr: ${stderr}`);
+        res();
+      });
+    });
+  }
+  process.kill(process.pid, "SIGINT");
+};
+
+export const Stop = () => {
+  stopStream();
+  setProcessing(false);
+  sendToAll("loading:false");
+};
+
 export const logic = async (recognizedText) => {
   if (recognizedText === "") return;
+  if (recognizedText.includes("stop")) {
+    return Stop();
+    kill();
+  }
   while (processing) await sleep(100);
   setProcessing(true);
   recognizedText = recognizedText.toLowerCase();
-  if (recognizedText.includes("stop")) {
-    if (process.env.TTS) {
-      await new Promise((res, rej) => {
-        exec("taskkill /f /im python.exe", (error, stdout, stderr) => {
-          if (error) {
-            console.error(`exec error: ${error}`);
-            rej(error);
-            return;
-          }
-          console.log(`stdout: ${stdout}`);
-          console.error(`stderr: ${stderr}`);
-          res();
-        });
-      });
-    }
-    process.kill(process.pid, "SIGINT");
-  } else if (removeDiacritics(recognizedText).includes("execute")) {
+  if (removeDiacritics(recognizedText).includes("execute")) {
     let command = removeDiacritics(recognizedText)
       .replace("execute", "")
       .trim();
@@ -185,7 +197,7 @@ export const logic = async (recognizedText) => {
       setEvil(false);
     else setEvil(true);
   } else if (recognizedText.includes("vois") || recognizedText.includes("see"))
-    await ollamaVision(recognizedText, speak);
+    await ollamaVision(recognizedText, speak, null);
   else if (recognizedText.includes("think") || recognizedText.includes("pense"))
     await ollamaChat(recognizedText, speak, "deepseek-r1:1.5b");
   else await ollamaChat(recognizedText, speak);
@@ -211,13 +223,11 @@ if (!process.env.MUTE)
 
         const recognition = () => {
           console.log("\nStarting microphone recognition.");
-          // setProcessing(true);
           // Start microphone recognition and handle results
           startMicRecognition(async (recognizedText) => {
             stopMicRecognition();
             console.log("\nRecognized text:", recognizedText);
             await logic(recognizedText);
-            // setProcessing(false);
             if (recognizedText !== "") {
               while (audioQueue.length > 0 && getIsAudioProcessing())
                 await sleep(250);
@@ -243,7 +253,9 @@ try {
       rl.question("Enter text: ", async (answer) => {
         console.log("text entered: ", answer);
         question();
+        sendToAll("loading:true");
         await logic(answer);
+        sendToAll("loading:false");
       });
     question();
   })();

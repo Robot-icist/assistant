@@ -1,5 +1,5 @@
 import WebSocket, { WebSocketServer } from "ws";
-import { logic } from "../../index.js";
+import { logic, setProcessing } from "../../index.js";
 import {
   getLang,
   setLang,
@@ -7,8 +7,7 @@ import {
   setVideo,
   speak,
 } from "../voice/speak.js";
-import { ollamaVision, setGoogle } from "../llm/ollama.js";
-import { LOG } from "./log.js";
+import { ollamaVision, setGoogle, setLLM } from "../llm/ollama.js";
 
 export let wss = null;
 
@@ -49,12 +48,19 @@ export const startWs = () => {
           if (json.lang != null) setLang(json.lang);
           if (json.google != null)
             setGoogle(parseInt(json.google, 10) === 1 ? true : false);
-          if (json.text != null) await logic(json.text);
+          if (json.llm != null) setLLM(json.llm);
+          if (json.text != null) {
+            sendToAll("loading:true");
+            await logic(json.text);
+            sendToAll("loading:false");
+          }
         }
       } catch (error) {
         console.log("ws error", error);
       }
       if (isBinary) {
+        sendToAll("loading:true");
+        setProcessing(true);
         await ollamaVision(
           getLang() == "fr"
             ? "Decris cette image et réponds en Français"
@@ -62,6 +68,8 @@ export const startWs = () => {
           speak,
           data
         );
+        setProcessing(false);
+        sendToAll("loading:false");
       }
     });
   });

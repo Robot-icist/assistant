@@ -19,7 +19,7 @@
     "frcstmtts": "cross-env LANG=fr TTS=true CUSTOM=true node index.js",
     "frcstmttsv": "cross-env LANG=fr TTS=true CUSTOM=true VIDEO=true node index.js",
     "debug": "cross-env DEBUG=true node index.js",
-    "serve_visual": "npx serve -l 1234 ./src/voice/visual",
+    "serve_visual": "serve -l 1234 ./src/voice/visual",
     "show_visual": "electron ./src/voice/electron_visual.js",
     "wait": "wait 1000",
     "waitAndShow": "npm-run-all wait show_visual",
@@ -67,7 +67,7 @@
   "devDependencies": {
     "electron": "^33.2.1",
     "npm-run-all": "^4.1.5",
-    "parcel": "^2.13.3",
+    "serve": "^14.2.4",
     "wait": "^0.4.2"
   }
 }
