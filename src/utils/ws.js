@@ -7,7 +7,12 @@ import {
   setVideo,
   speak,
 } from "../voice/speak.js";
-import { ollamaVision, setGoogle, setLLM } from "../llm/ollama.js";
+import {
+  ollamaVision,
+  setGoogle,
+  setKeepInMemory,
+  setLLM,
+} from "../llm/ollama.js";
 
 export let wss = null;
 
@@ -46,6 +51,7 @@ export const startWs = () => {
           if (json.lang != null) setLang(json.lang);
           if (json.google != null) setGoogle(json.google);
           if (json.llm != null) setLLM(json.llm);
+          if (json.keepInMemory != null) setKeepInMemory(json.keepInMemory);
           if (json.text != null) {
             sendToAll("loading:true");
             await logic(json.text);

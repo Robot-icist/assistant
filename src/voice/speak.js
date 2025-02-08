@@ -51,13 +51,17 @@ const videoOutputPath = path.resolve(
 
 const images = [
   "C:/Projects/assistant/src/image/pictures/robert/robdoe.jpeg",
-  "C:/Projects/assistant/src/image/pictures/pierre/nineycropped.bmp",
+  "C:/Projects/assistant/src/image/pictures/pierre/niney.bmp",
   "C:/Projects/assistant/src/image/pictures/robert/robdoe.jpeg",
   "C:/Projects/assistant/src/image/pictures/liam/liamneeson.jpg",
-  "C:/Projects/assistant/src/image/pictures/scarlett/scarlett.jpeg",
+  "C:/Projects/assistant/src/image/pictures/scarlett/scarlett2.jpeg",
   "C:/Projects/assistant/src/image/pictures/brad/brad.jpg",
   "C:/Projects/assistant/src/image/pictures/eddie/eddie.jpg",
-  "C:/Projects/assistant/src/image/pictures/gilles/gilles.bmp",
+  "C:/Projects/assistant/src/image/pictures/jacques/jacques.jpeg",
+  "C:/Projects/assistant/src/image/pictures/alain/alain.jpg",
+  "C:/Projects/assistant/src/image/pictures/arnold/arnold.jpg",
+  "C:/Projects/assistant/src/image/pictures/arnold/arnold.jpg",
+  "C:/Projects/assistant/src/image/pictures/gilles/gilles.jpg",
   "C:/Projects/assistant/src/image/pictures/axel/telechargement(1).jpg",
   "C:/Projects/assistant/src/image/pictures/axel/telechargement.jpg",
 ];
@@ -69,7 +73,11 @@ const wavs = [
   "C:\\Projects\\assistant\\src\\python\\wavs\\scarlett.wav",
   "C:\\Projects\\assistant\\src\\python\\wavs\\brad.wav",
   "C:\\Projects\\assistant\\src\\python\\wavs\\medhondo.wav",
-  "C:\\Projects\\assistant\\src\\python\\wavs\\gilles20.wav",
+  "C:\\Projects\\assistant\\src\\python\\wavs\\jacques.wav",
+  "C:\\Projects\\assistant\\src\\python\\wavs\\alain12.wav",
+  "C:\\Projects\\assistant\\src\\python\\wavs\\danielberetta.wav",
+  "C:\\Projects\\assistant\\src\\python\\wavs\\arnold.wav",
+  "C:\\Projects\\assistant\\src\\python\\wavs\\gilles.wav",
   "C:\\Projects\\assistant\\src\\python\\wavs\\voixaxel2.wav",
   "C:\\Projects\\assistant\\src\\python\\wavs\\voixaxel.wav",
 ];

@@ -10,6 +10,7 @@ export const sendParams = (text = null) => {
       video: params.video,
       google: params.google,
       llm: params.llm,
+      keepInMemory: params.keepInMemory,
     })
   );
 };
@@ -33,6 +34,7 @@ const listenForTextInput = () => {
   let textBuffer = "";
   document.addEventListener("keydown", async (event) => {
     console.log(event);
+    hideLLMText();
     if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
       textBuffer += event.key;
       displayText(textBuffer);

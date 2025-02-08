@@ -43,7 +43,7 @@ class WebSocketHandler {
       if (event.data.includes("text:"))
         displayText(
           event.data.split("text:").pop(),
-          10000,
+          7500,
           "Silkscreen",
           true,
           "text-display-llm"
@@ -168,7 +168,13 @@ class WebSocketHandler {
         this.playNextMedia();
       };
 
-      mediaElement.onclick = () => mediaElement.remove();
+      mediaElement.onclick = (e) => {
+        e.preventDefault();
+        WS.events.emit("played");
+        mediaElement.remove();
+        URL.revokeObjectURL(url);
+        this.playNextMedia();
+      };
     }
   }
 }

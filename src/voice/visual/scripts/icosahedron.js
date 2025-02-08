@@ -44,7 +44,8 @@ const params = {
   speaker: 0,
   video: false,
   google: false,
-  alwayson: false,
+  alwaysOn: false,
+  keepInMemory: false,
 };
 
 export const getParams = () => params;
@@ -266,7 +267,7 @@ assistantFolder
   .onChange(async (value) => {
     params.llm = value;
   });
-assistantFolder.add(params, "speaker", 0, 10, 1).onChange((value) => {
+assistantFolder.add(params, "speaker", 0, 12, 1).onChange((value) => {
   params.speaker = value;
 });
 
@@ -278,12 +279,16 @@ assistantFolder.add(params, "google").onChange((value) => {
   params.google = value;
 });
 
-assistantFolder.add(params, "alwayson").onChange(async (value) => {
-  params.alwayson = value;
+assistantFolder.add(params, "alwaysOn").onChange(async (value) => {
+  params.alwaysOn = value;
   if (value) {
     stopVoiceRecognition();
     await processCallback(params.wakeword);
   }
+});
+
+assistantFolder.add(params, "keepInMemory").onChange(async (value) => {
+  params.keepInMemory = value;
 });
 
 let mouseX = 0;

@@ -8,10 +8,10 @@ export const processCallback = async (wakeword) => {
   changeColor("gold");
   const params = getParams();
   await startVoiceRecognition("/scripts/" + params.model, async (data) => {
-    !params.alwayson && stopVoiceRecognition();
-    !params.alwayson && changeColor("deepskyblue");
+    !params.alwaysOn && stopVoiceRecognition();
+    !params.alwaysOn && changeColor("deepskyblue");
     console.log("recognized", data);
-    displayText(data.text + "\n");
+    displayText(data.text);
     if (
       data.text.toLowerCase().includes("vois") ||
       data.text.toLowerCase().includes("see")
