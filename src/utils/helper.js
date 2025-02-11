@@ -57,10 +57,18 @@ export const ensureDirExists = (dir) => {
 };
 
 export const deleteDir = (dir) => {
-  if (fs.existsSync(dir)) {
-    fs.rmdirSync(dir, { recursive: true });
-    console.log(`Deleted directory: ${dir}`);
+  try {
+    if (fs.existsSync(dir)) {
+      fs.rmdirSync(dir, { recursive: true });
+      console.log(`Deleted directory: ${dir}`);
+    }
+  } catch (error) {
+    console.log(error);
   }
+};
+
+export const deleteTempDir = () => {
+  deleteDir(os.tempDir);
 };
 
 // Function to register the face (takes sample pictures)
@@ -182,6 +190,13 @@ const registerVoiceClone = async () => {
   );
 };
 
+const createTempFileName = (name, extension) => {
+  const tempDir = os.tmpdir(); // Get the OS temporary directory
+  const fileName = `${name}-${Date.now()}.${extension}`;
+  const filePath = path.join(tempDir, fileName);
+  return filePath;
+};
+
 /**
  * Creates a temporary file from a buffer asynchronously.
  * @param {Buffer} buffer - The buffer to write to the temporary file.
@@ -189,9 +204,7 @@ const registerVoiceClone = async () => {
  * @returns {Promise<Object>} - A Promise resolving to an object containing the file path and a method to delete the file.
  */
 const createTempFileFromBuffer = async (buffer, extension = "wav") => {
-  const tempDir = os.tmpdir(); // Get the OS temporary directory
-  const fileName = `temp-${Date.now()}.${extension}`;
-  const filePath = path.join(tempDir, fileName);
+  const filePath = createTempFileName("temp", extension);
 
   // Write the buffer to the file
   await fs.promises.writeFile(filePath, buffer);
@@ -200,8 +213,10 @@ const createTempFileFromBuffer = async (buffer, extension = "wav") => {
     path: filePath,
     delete: async (timeout = 60 * 1000) => {
       try {
-        setTimeout(async () => await fs.promises.unlink(filePath), timeout); // Delete the file after use
-        console.log(`Temporary file deleted: ${filePath}`);
+        setTimeout(async () => {
+          await fs.promises.unlink(filePath);
+          console.log(`Temporary file deleted: ${filePath}`);
+        }, timeout); // Delete the file after use
       } catch (err) {
         console.error(`Failed to delete temporary file: ${filePath}`, err);
       }
@@ -214,4 +229,5 @@ export {
   registerHotword,
   registerVoiceClone,
   createTempFileFromBuffer,
+  createTempFileName,
 };

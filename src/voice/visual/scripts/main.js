@@ -35,7 +35,14 @@ const listenForTextInput = () => {
   document.addEventListener("keydown", async (event) => {
     console.log(event);
     hideLLMText();
-    if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
+    if (
+      event.key &&
+      event.key != "Unidentified" &&
+      event.key != "Backspace" &&
+      event.key != "Enter" &&
+      !event.ctrlKey &&
+      !event.metaKey
+    ) {
       textBuffer += event.key;
       displayText(textBuffer);
     } else if (event.key === "Backspace") {
@@ -75,25 +82,31 @@ const enableVirtualKeyboard = () => {
       input.style.position = "absolute";
       input.style.opacity = "0";
       input.style.pointerEvents = "none";
+      input.setAttribute("autocorrect", "off");
+      input.setAttribute("autocomplete", "off");
+      input.setAttribute("spellcheck", "false");
 
       document.body.prepend(input); // move it to the top of the body
       input.focus();
 
       // Ensures key events are dispatched correctly for "Enter" and other keys.
       input.addEventListener("input", (event) => {
-        const key = event.data || ""; // Get the typed character
+        console.log(event);
+        let data = event.data || "";
+        const key =
+          event.inputType == "deleteContentBackward" ? "Backspace" : data;
         if (key) {
           document.dispatchEvent(new KeyboardEvent("keydown", { key }));
         }
       });
 
-      input.addEventListener("keydown", (event) => {
-        document.dispatchEvent(new KeyboardEvent("keydown", { ...event }));
-      });
+      // input.addEventListener("keydown", (event) => {
+      //   document.dispatchEvent(new KeyboardEvent("keydown", { ...event }));
+      // });
 
-      input.addEventListener("keyup", (event) => {
-        document.dispatchEvent(new KeyboardEvent("keydown", { ...event }));
-      });
+      // input.addEventListener("keyup", (event) => {
+      //   document.dispatchEvent(new KeyboardEvent("keydown", { ...event }));
+      // });
 
       input.addEventListener("blur", () => {
         document.body.removeChild(input);

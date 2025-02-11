@@ -74,6 +74,7 @@ let conversationHistoryGemini = [];
 
 let stream;
 let abortController = new AbortController();
+
 export const stopStream = () => {
   stream?.abortController?.abort();
   abortController?.abort();
@@ -96,7 +97,7 @@ export async function ollamaChat(text, speak, model = llm) {
 
     // Add user input to conversation history
     if (!google) {
-      if (conversationHistory.length > 10)
+      if (conversationHistory.length > 5)
         conversationHistory = conversationHistory.slice(0, 1);
       if (conversationHistory[0].content != systemInstructions()) {
         conversationHistory[0] = {
@@ -107,7 +108,7 @@ export async function ollamaChat(text, speak, model = llm) {
       }
       conversationHistory.push({ role: "user", content: text });
     } else {
-      if (conversationHistoryGemini.length > 10)
+      if (conversationHistoryGemini.length > 50)
         conversationHistoryGemini = conversationHistoryGemini.slice(0, 1);
       conversationHistoryGemini.push({ role: "user", parts: [{ text }] });
     }

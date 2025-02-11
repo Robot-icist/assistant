@@ -16,6 +16,8 @@ import {
   convertToH264,
   createTempFileFromBuffer,
   deleteDir,
+  createTempFileName,
+  deleteTempDir,
 } from "../utils/helper.js";
 import { runPowerShellAsAdmin } from "../utils/processRunner.js";
 import path from "path";
@@ -106,10 +108,29 @@ const resultsPath = path.resolve(__dirname, "../python/sadtalker/results");
 
 deleteDir(resultsPath);
 
-firstOrderModelProcess.events.on("done", (data) => {
+deleteTempDir();
+
+firstOrderModelProcess.events.on("done", async (data) => {
   if (!video) return;
   // console.log("received fomm event done", data);
   let resolve = resolves.shift();
+  let convertedPath = createTempFileName("converted", "mp4");
+  console.log("received FOMM event done", data, videoOutputPath, convertedPath);
+
+  if (process.env.MUTE && getProcessing()) {
+    await convertToH264(videoOutputPath, convertedPath);
+    fs.readFile(convertedPath, (err, data) => {
+      if (err) {
+        console.error("\nError reading the MP4 file:", err);
+        return;
+      }
+      console.log("\nSending MP4 file...");
+      // Send the WAV file as binary data
+      sendToAll(data, true);
+      setTimeout(async () => await fs.promises.unlink(convertedPath), 1000);
+    });
+  }
+
   resolve?.tempfile?.delete();
   resolve.resolve();
   console.timeEnd(resolve?.timeName);
@@ -134,13 +155,18 @@ sadTalkerProcess.events.on("done", async (data) => {
   if (!video) return;
   let filepath = data.split("\\").pop();
   let videoPath = path.resolve(resultsPath, filepath);
-  let convertedPath = path.resolve(resultsPath, "converted.mp4");
-  console.log("received sadtalker event done", data, filepath, videoPath);
+  let convertedPath = createTempFileName("converted", "mp4");
+  console.log(
+    "received sadtalker event done",
+    data,
+    filepath,
+    videoPath,
+    convertedPath
+  );
   let resolve = resolves.shift();
 
-  await convertToH264(videoPath, convertedPath);
-
-  process.env.MUTE &&
+  if (process.env.MUTE && getProcessing()) {
+    await convertToH264(videoPath, convertedPath);
     fs.readFile(convertedPath, (err, data) => {
       if (err) {
         console.error("\nError reading the MP4 file:", err);
@@ -149,7 +175,13 @@ sadTalkerProcess.events.on("done", async (data) => {
       console.log("\nSending MP4 file...");
       // Send the WAV file as binary data
       sendToAll(data, true);
+      setTimeout(async () => {
+        await fs.promises.unlink(convertedPath);
+        console.log("Temporary converted file deleted: ", convertedPath);
+      }, 60 * 1000);
     });
+  }
+
   resolve?.tempfile?.delete();
   resolve.resolve();
   console.timeEnd(resolve?.timeName);
@@ -176,7 +208,9 @@ ttsProcess.events.on("done", async (data) => {
     resolve?.resolve();
     return;
   }
+
   if (!getProcessing()) return resolve?.resolve();
+
   const fileBuffer = await fs.promises.readFile(audioOutputPath);
   const tempfile = await createTempFileFromBuffer(fileBuffer, "wav");
   const timeName = `video:${resolve.text}`;

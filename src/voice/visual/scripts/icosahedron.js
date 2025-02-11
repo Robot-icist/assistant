@@ -287,9 +287,9 @@ assistantFolder.add(params, "alwaysOn").onChange(async (value) => {
   }
 });
 
-assistantFolder.add(params, "keepInMemory").onChange(async (value) => {
-  params.keepInMemory = value;
-});
+// assistantFolder.add(params, "keepInMemory").onChange(async (value) => {
+//   params.keepInMemory = value;
+// });
 
 let mouseX = 0;
 let mouseY = 0;

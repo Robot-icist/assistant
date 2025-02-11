@@ -165,7 +165,7 @@ keyboardListener.addListener((event) => {
 //Capture CTRL + C
 keyboardListener.addListener(async function (e, down) {
   if (e.state == "DOWN" && e.name == "C" && down["LEFT CTRL"]) {
-    Kill();
+    //Kill();
   }
 });
 
@@ -193,6 +193,7 @@ keyboardListener.addListener(async function (e, down) {
 //ESCAPE
 keyboardListener.addListener(function (e, down) {
   if (e.state == "DOWN" && e.name == "ESCAPE") {
+    Kill();
   }
 });
 
