@@ -37,6 +37,7 @@ const listenForTextInput = () => {
     hideLLMText();
     if (
       event.key &&
+      event.key != "Alt" &&
       event.key != "Unidentified" &&
       event.key != "Backspace" &&
       event.key != "Enter" &&
@@ -65,7 +66,7 @@ const listenForTextInput = () => {
         sendParams(textBuffer.trim());
       }
       textBuffer = "";
-      displayText(textBuffer);
+      //displayText(textBuffer);
     }
   });
 };
@@ -133,28 +134,32 @@ function requestNotificationPermission() {
 }
 requestNotificationPermission();
 
+let loading = false;
 window.addEventListener("load", () => {
   sendParams();
   WS.events.subscribe("connected", () => changeColor("deepskyblue"));
   WS.events.subscribe("disconnected", () => changeColor("grey"));
   WS.events.subscribe("loading", () => {
+    loading = true;
     showLoader();
     createStopButton(stopProcessing);
   });
   WS.events.subscribe("unloading", () => {
+    loading = false;
     hideLoader();
-    hideStopButton();
+    //hideStopButton();
   });
   WS.events.subscribe("playing", () => createStopButton(stopProcessing));
-  WS.events.subscribe("played", () => hideStopButton());
+  WS.events.subscribe("played", () => {
+    if (!loading) hideStopButton();
+  });
   WS.events.subscribe("stop", () => {
     WS.mediaQueue = [];
     stopPlaying();
-    hideStopButton();
+    if (!loading) hideStopButton();
   });
-  document.getElementsByTagName("canvas")[0].addEventListener("click", (e) => {
-    e.preventDefault();
+  document.getElementsByTagName("canvas")[0].addEventListener("click", () => {
     stopPlaying();
-    hideStopButton();
+    if (!loading) hideStopButton();
   });
 });

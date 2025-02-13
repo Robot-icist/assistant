@@ -80,6 +80,11 @@ function hideLLMText() {
   if (llmText) llmText.remove();
 }
 
+function hideText() {
+  const llmText = document.getElementById("text-display");
+  if (llmText) llmText.remove();
+}
+
 function showLoader() {
   // Create loader container element
   const loaderContainer = document.createElement("div");
@@ -176,8 +181,10 @@ function createStopButton(onClick) {
 
 function hideStopButton() {
   // Find the loader by id and remove it
-  const stopContainer = document.getElementById("stop");
-  if (stopContainer) {
-    stopContainer.remove();
+  while (document.getElementById("stop") != null) {
+    const stopContainer = document.getElementById("stop");
+    if (stopContainer) {
+      stopContainer.remove();
+    }
   }
 }

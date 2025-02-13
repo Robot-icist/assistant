@@ -40,7 +40,8 @@ class WebSocketHandler {
 
   handleMessage(event) {
     if (typeof event.data === "string") {
-      if (event.data.includes("text:"))
+      if (event.data.includes("text:")) {
+        hideText();
         displayText(
           event.data.split("text:").pop(),
           7500,
@@ -48,6 +49,7 @@ class WebSocketHandler {
           true,
           "text-display-llm"
         );
+      }
       if (event.data.includes("loading:")) {
         let loading = event.data.split("loading:").pop();
         this.events.emit(loading == "true" ? "loading" : "unloading");
@@ -168,8 +170,7 @@ class WebSocketHandler {
         this.playNextMedia();
       };
 
-      mediaElement.onclick = (e) => {
-        e.preventDefault();
+      mediaElement.onclick = () => {
         WS.events.emit("played");
         mediaElement.remove();
         URL.revokeObjectURL(url);
