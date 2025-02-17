@@ -7,13 +7,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name 
 
 const isMac = os.type() == "Darwin";
 const isWindows = os.type().indexOf("Windows") > -1;
+let word;
 
 export const getHotword = () => {
-  let word;
+  if (word != null) return word;
   if (!process.env.CUSTOM) {
     word = process.env.HOTWORD ? process.env.HOTWORD : "jarvis";
   } else word = process.env.HOTWORD ? process.env.HOTWORD : "pierre";
   return word;
+};
+
+export const setHotword = (val) => {
+  word = val;
 };
 
 export let selectedHotword = getHotword();

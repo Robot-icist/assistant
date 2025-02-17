@@ -51,14 +51,12 @@ let screenWidth = 0;
   screenWidth = await screen.width();
 })();
 
-const hotword = getHotword();
-
 const systemInstructions = () =>
   getLang() == "fr"
-    ? `Tu t'appels ${hotword}. 
+    ? `Tu t'appels ${getHotword()}. 
           Tu es un assistant virtuel sur ordinateur, 
           tu fais des phrases assez courtes et tu réponds a toutes mes demandes` // et termine chacunes de tes réponses par le mot "Patron !".`
-    : `Your Name is ${hotword}. 
+    : `Your Name is ${getHotword()}. 
           You are a virtual assistant on a computer, 
           you make small sentences and you reply to all my demands`; // and terminate every of your answers with the word "Boss !".`;
 
@@ -99,16 +97,17 @@ export async function ollamaChat(text, speak, model = llm) {
     if (!google) {
       if (conversationHistory.length > 5)
         conversationHistory = conversationHistory.slice(0, 1);
-      if (conversationHistory[0].content != systemInstructions()) {
+      if (conversationHistory[0].content !== systemInstructions()) {
+        console.log("prompt changed");
+        conversationHistory = conversationHistory.slice(0, 1);
         conversationHistory[0] = {
           role: "system",
           content: systemInstructions(),
         };
-        conversationHistory = conversationHistory.slice(0, 1);
       }
       conversationHistory.push({ role: "user", content: text });
     } else {
-      if (conversationHistoryGemini.length > 50)
+      if (conversationHistoryGemini.length > 10)
         conversationHistoryGemini = conversationHistoryGemini.slice(0, 1);
       conversationHistoryGemini.push({ role: "user", parts: [{ text }] });
     }
@@ -168,7 +167,7 @@ export async function ollamaChat(text, speak, model = llm) {
         if (speak) {
           let sentences = splitByPunctuation(accumulatedText);
           while (sentences.length > 0) {
-            let sentence = sentences.shift().trim();
+            let sentence = sentences.shift().trim().replace(".", "");
             if (sentence != "" && sentence.length > 1)
               await speak(makeSingleLine(sentence));
           }
@@ -192,7 +191,7 @@ export async function ollamaChat(text, speak, model = llm) {
       if (speak) {
         let sentences = splitByPunctuation(accumulatedText);
         while (sentences.length > 0) {
-          let sentence = sentences.shift().trim();
+          let sentence = sentences.shift().trim().replace(".", "");
           if (sentence != "" && sentence.length > 1)
             await speak(makeSingleLine(sentence));
         }
@@ -308,7 +307,7 @@ export async function ollamaVision(basePrompt, speak, bytes) {
       if (endsWithPunctuation(accumulatedText)) {
         let sentences = splitByPunctuation(accumulatedText);
         while (sentences.length > 0) {
-          let sentence = sentences.shift().trim();
+          let sentence = sentences.shift().trim().replace(".", "");
           if (sentence != "" && sentence.length > 1)
             await speak(makeSingleLine(sentence));
         }
@@ -330,7 +329,7 @@ export async function ollamaVision(basePrompt, speak, bytes) {
     if (accumulatedText.length > 0) {
       let sentences = splitByPunctuation(accumulatedText);
       while (sentences.length > 0) {
-        let sentence = sentences.shift().trim();
+        let sentence = sentences.shift().trim().replace(".", "");
         if (sentence != "" && sentence.length > 1)
           await speak(makeSingleLine(sentence));
       }

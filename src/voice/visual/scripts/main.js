@@ -7,6 +7,7 @@ export const sendParams = (text = null) => {
       text: text,
       lang: params.model.includes("fr") ? "fr" : "en",
       speaker: params.speaker,
+      hotword: params.wakeword.toLowerCase(),
       video: params.video,
       google: params.google,
       llm: params.llm,
@@ -36,11 +37,21 @@ const listenForTextInput = () => {
     console.log(event);
     hideLLMText();
     if (
-      event.key &&
-      event.key != "Alt" &&
-      event.key != "Unidentified" &&
-      event.key != "Backspace" &&
-      event.key != "Enter" &&
+      event.key.length == 1 &&
+      // event.key != "Alt" &&
+      // event.key != "Unidentified" &&
+      // event.key != "Backspace" &&
+      // event.key != "Enter" &&
+      // event.key != "AudioVolumeUp" &&
+      // event.key != "AudioVolumeDown" &&
+      // event.key != "AltGraph" &&
+      // event.key != "ArrowLeft" &&
+      // event.key != "ArrowRight" &&
+      // event.key != "ArrowUp" &&
+      // event.key != "ArrowDown" &&
+      // event.key != "NumLock" &&
+      // event.key != "Delete" &&
+      // event.key != "Insert" &&
       !event.ctrlKey &&
       !event.metaKey
     ) {
@@ -66,7 +77,7 @@ const listenForTextInput = () => {
         sendParams(textBuffer.trim());
       }
       textBuffer = "";
-      //displayText(textBuffer);
+      displayText(textBuffer);
     }
   });
 };
@@ -147,7 +158,7 @@ window.addEventListener("load", () => {
   WS.events.subscribe("unloading", () => {
     loading = false;
     hideLoader();
-    //hideStopButton();
+    //if (WS.mediaQueue.length == 0) hideStopButton();
   });
   WS.events.subscribe("playing", () => createStopButton(stopProcessing));
   WS.events.subscribe("played", () => {
@@ -160,6 +171,8 @@ window.addEventListener("load", () => {
   });
   document.getElementsByTagName("canvas")[0].addEventListener("click", () => {
     stopPlaying();
-    if (!loading) hideStopButton();
+    if (!loading && WS.mediaQueue.length == 0) hideStopButton();
+    hideText();
+    hideLLMText();
   });
 });

@@ -158,6 +158,12 @@ let dataArray = []; // = new Uint8Array(analyser.frequencyBinCount);
 
 export const gui = new GUI();
 
+//position gui
+document.getElementsByClassName("dg ac")[0].style.top = "0";
+document.getElementsByClassName("dg ac")[0].style.display = "flex";
+document.getElementsByClassName("dg ac")[0].style.justifyContent =
+  "space-around";
+
 gui.useLocalStorage = true;
 
 let guiDisplayed = true;

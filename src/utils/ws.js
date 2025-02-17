@@ -13,6 +13,7 @@ import {
   setKeepInMemory,
   setLLM,
 } from "../llm/ollama.js";
+import { setHotword } from "../voice/hotword.js";
 
 export let wss = null;
 
@@ -47,6 +48,7 @@ export const startWs = () => {
           const json = JSON.parse(data);
           console.log(JSON.stringify(json, null, 2));
           if (json.speaker != null) setSpeakerId(parseInt(json.speaker, 10));
+          if (json.hotword != null) setHotword(json.hotword);
           if (json.video != null) setVideo(json.video);
           if (json.lang != null) setLang(json.lang);
           if (json.google != null) setGoogle(json.google);
