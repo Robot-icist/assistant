@@ -136,7 +136,8 @@ export async function ollamaChat(text, speak, model = llm) {
       });
     else {
       const gemini = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
+        // model: "gemini-1.5-flash",
+        model: "gemini-2.0-flash-Lite",
         systemInstruction: systemInstructions(),
       });
       const chat = gemini.startChat({
@@ -265,7 +266,8 @@ export async function ollamaVision(basePrompt, speak, bytes) {
       });
     else {
       const gemini = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
+        // model: "gemini-1.5-flash",
+        model: "gemini-2.0-flash-Lite",
         systemInstruction: systemInstructions(),
       });
       // const chat = gemini.startChat({

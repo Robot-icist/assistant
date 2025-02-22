@@ -32,6 +32,7 @@ export const startWs = () => {
       !ip.includes("92.184") && //Android
       !ip.includes("109.210.78.69") && //home
       !ip.includes("128.79.182.244") && //axel home
+      !ip.includes("176.149.91.118") && //axel phone
       !ip.includes("184.163.47.39") && //mike home
       !ip.includes("::1") &&
       ip != ""

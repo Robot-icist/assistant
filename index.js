@@ -48,6 +48,7 @@ import {
 } from "./src/utils/processRunner.js";
 import { tunnel } from "./src/utils/tunnel.js";
 import "dotenv/config";
+import smartlife from "./src/automation/smartlife.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -197,6 +198,25 @@ export const logic = async (recognizedText) => {
     )
       setEvil(false);
     else setEvil(true);
+  } else if (
+    removeDiacritics(recognizedText).includes("bascule") ||
+    removeDiacritics(recognizedText).includes("toggle")
+  ) {
+    let replaced = recognizedText
+      .replace("bascule", "")
+      .replace("toggle", "")
+      .trim();
+    let devices = smartlife
+      .getUserInfo()
+      .devices.filter(
+        (d) =>
+          removeDiacritics(d.name.toLowerCase()).includes(
+            removeDiacritics(replaced.toLowerCase())
+          ) && d.dev_type == "switch"
+      );
+    let device = devices.shift();
+    console.log(smartlife.getUserInfo().devices, devices, device);
+    await smartlife.toggleDevice(device);
   } else if (recognizedText.includes("vois") || recognizedText.includes("see"))
     await ollamaVision(recognizedText, speak, null);
   else if (recognizedText.includes("think") || recognizedText.includes("pense"))
@@ -243,6 +263,8 @@ if (!process.env.MUTE)
 
 try {
   (async () => {
+    await smartlife.login();
+    await smartlife.getDeviceList();
     // await speak("Hello Boss");
     // await registerFace();
     // await registerHotword();

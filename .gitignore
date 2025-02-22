@@ -358,3 +358,6 @@ src/python/speech-driven-animation/sda/data/
 
 .parcel-cache/
 **/.parce-cache/
+
+.node-persist/
+**/.node-persist/
