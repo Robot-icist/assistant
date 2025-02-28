@@ -25,6 +25,8 @@ const ollamaInstance = new Ollama();
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
+const geminiModel = "gemini-2.0-flash-lite"; //"gemini-1.5-flash";
+
 let google = process.env.GOOGLE;
 
 export const getGoogle = () => google;
@@ -34,9 +36,6 @@ export const setGoogle = (val) => (google = val);
 let keepInMemory = false;
 
 export const setKeepInMemory = (val) => (keepInMemory = val);
-
-// const result = await model.generateContent([prompt, image]);
-// console.log(result.response.text());
 
 let resolutionHeight = 0;
 let resolutionWidth = 0;
@@ -136,8 +135,7 @@ export async function ollamaChat(text, speak, model = llm) {
       });
     else {
       const gemini = genAI.getGenerativeModel({
-        // model: "gemini-1.5-flash",
-        model: "gemini-2.0-flash-Lite",
+        model: geminiModel,
         systemInstruction: systemInstructions(),
       });
       const chat = gemini.startChat({
@@ -266,8 +264,7 @@ export async function ollamaVision(basePrompt, speak, bytes) {
       });
     else {
       const gemini = genAI.getGenerativeModel({
-        // model: "gemini-1.5-flash",
-        model: "gemini-2.0-flash-Lite",
+        model: geminiModel,
         systemInstruction: systemInstructions(),
       });
       // const chat = gemini.startChat({

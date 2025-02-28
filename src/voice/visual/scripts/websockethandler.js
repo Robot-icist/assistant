@@ -73,6 +73,8 @@ class WebSocketHandler {
       this.enqueueMedia(buffer, "audio/wav");
     } else if (this.isMp4(byteArray)) {
       this.enqueueMedia(buffer, "video/mp4");
+    } else if (this.isImage(byteArray)) {
+      this.enqueueMedia(buffer, this.getImageMimeType(byteArray));
     } else {
       console.warn("Unknown binary format received");
     }
@@ -94,6 +96,31 @@ class WebSocketHandler {
       byteArray[6] === 0x79 &&
       byteArray[7] === 0x70
     );
+  }
+
+  isImage(byteArray) {
+    return this.getImageMimeType(byteArray) !== null;
+  }
+
+  getImageMimeType(byteArray) {
+    const signatures = {
+      "image/jpeg": [0xff, 0xd8, 0xff],
+      "image/png": [0x89, 0x50, 0x4e, 0x47],
+      "image/gif": [0x47, 0x49, 0x46, 0x38],
+      "image/bmp": [0x42, 0x4d],
+      "image/webp": [0x52, 0x49, 0x46, 0x46],
+    };
+
+    for (const [mime, signature] of Object.entries(signatures)) {
+      if (
+        byteArray
+          .slice(0, signature.length)
+          .every((byte, index) => byte === signature[index])
+      ) {
+        return mime;
+      }
+    }
+    return null;
   }
 
   enqueueMedia(buffer, type) {
@@ -144,6 +171,18 @@ class WebSocketHandler {
       else mediaElement.style.height = "66vh";
       mediaElement.style.width = "auto";
       mediaElement.style.background = "black";
+    } else if (type.startsWith("image")) {
+      document.getElementById("image")?.remove();
+      mediaElement = document.createElement("img");
+      mediaElement.id = "image";
+      mediaElement.src = url;
+      mediaElement.style.position = "fixed";
+      mediaElement.style.top = "50%";
+      mediaElement.style.left = "50%";
+      mediaElement.style.transform = "translate(-50%, -50%)";
+      mediaElement.style.zIndex = "9999";
+      mediaElement.style.maxWidth = "90vw";
+      mediaElement.style.maxHeight = "90vh";
     }
 
     if (mediaElement) {

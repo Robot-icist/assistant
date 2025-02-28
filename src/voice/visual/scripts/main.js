@@ -158,11 +158,11 @@ window.addEventListener("load", () => {
   WS.events.subscribe("unloading", () => {
     loading = false;
     hideLoader();
-    //if (WS.mediaQueue.length == 0) hideStopButton();
+    if (WS.mediaQueue.length == 0) hideStopButton();
   });
   WS.events.subscribe("playing", () => createStopButton(stopProcessing));
   WS.events.subscribe("played", () => {
-    if (!loading) hideStopButton();
+    if (!loading && WS.mediaQueue.length == 0) hideStopButton();
   });
   WS.events.subscribe("stop", () => {
     WS.mediaQueue = [];

@@ -56,9 +56,7 @@ export const startWs = () => {
           if (json.llm != null) setLLM(json.llm);
           if (json.keepInMemory != null) setKeepInMemory(json.keepInMemory);
           if (json.text != null && json.text != "") {
-            sendToAll("loading:true");
             await logic(json.text);
-            sendToAll("loading:false");
           }
         }
       } catch (error) {

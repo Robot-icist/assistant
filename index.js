@@ -133,21 +133,14 @@ export const logic = async (recognizedText) => {
   }
   while (processing) await sleep(100);
   setProcessing(true);
-  recognizedText = recognizedText.toLowerCase();
-  if (removeDiacritics(recognizedText).includes("execute")) {
-    let command = removeDiacritics(recognizedText)
-      .replace("execute", "")
-      .trim();
+  sendToAll("loading:true");
+  recognizedText = removeDiacritics(recognizedText).toLowerCase().trim();
+  if (recognizedText.includes("execute")) {
+    let command = recognizedText.replace("execute", "").trim();
     replayMatchingRecordings(command);
     return;
-  } else if (
-    recognizedText.includes("open") ||
-    recognizedText.includes("ouvre")
-  ) {
-    let command = removeDiacritics(recognizedText)
-      .replace("open", "")
-      .replace("ouvre", "")
-      .trim();
+  } else if (recognizedText.includes("program")) {
+    let command = recognizedText.replace("program", "").trim();
     const KeyboardArray = [{ type: "keyboard", keys: "WIN R", time: 1000 }];
     [...command].forEach((char) =>
       KeyboardArray.push({ type: "keyboard", keys: `${char}`, time: 250 })
@@ -158,10 +151,7 @@ export const logic = async (recognizedText) => {
     recognizedText.includes("type") ||
     recognizedText.includes("tape")
   ) {
-    let command = removeDiacritics(recognizedText)
-      .replace("type", "")
-      .replace("tape", "")
-      .trim();
+    let command = recognizedText.replace("type", "").replace("tape", "").trim();
     const KeyboardArray = [];
     [...command].forEach((char) =>
       KeyboardArray.push({ type: "keyboard", keys: `${char}`, time: 250 })
@@ -169,18 +159,22 @@ export const logic = async (recognizedText) => {
     KeyboardArray.push({ type: "keyboard", keys: "ENTER", time: 2000 });
     await playActions(KeyboardArray);
   } else if (
-    removeDiacritics(recognizedText).includes("genere") ||
-    removeDiacritics(recognizedText).includes("generate")
+    recognizedText.includes("genere") ||
+    recognizedText.includes("generate")
   ) {
-    let prompt = removeDiacritics(recognizedText)
+    let prompt = recognizedText
       .replace("genere", "")
       .replace("generate", "")
       .trim();
-    if (prompt.includes("image")) await generateImage(prompt, true, false);
-    else if (prompt.includes("video")) await generateVideo(prompt, 24, 2);
+    let data;
+    if (prompt.includes("image")) {
+      console.log(data);
+      data = await generateImage(prompt, true, false);
+      sendToAll(data.buffer, true);
+    } else if (prompt.includes("video")) await generateVideo(prompt, 24, 2);
   } else if (
-    removeDiacritics(recognizedText).includes("repete") ||
-    removeDiacritics(recognizedText).includes("repeat")
+    recognizedText.includes("repete") ||
+    recognizedText.includes("repeat")
   ) {
     let prompt = recognizedText
       .replace("repete", "")
@@ -189,18 +183,15 @@ export const logic = async (recognizedText) => {
       .trim();
     await speak(prompt);
   } else if (
-    removeDiacritics(recognizedText).includes("malefique") ||
-    removeDiacritics(recognizedText).includes("evil")
+    recognizedText.includes("malefique") ||
+    recognizedText.includes("evil")
   ) {
-    if (
-      recognizedText.includes("off") ||
-      removeDiacritics(recognizedText).includes("desactiv")
-    )
+    if (recognizedText.includes("off") || recognizedText.includes("desactiv"))
       setEvil(false);
     else setEvil(true);
   } else if (
-    removeDiacritics(recognizedText).includes("bascule") ||
-    removeDiacritics(recognizedText).includes("toggle")
+    recognizedText.includes("bascule") ||
+    recognizedText.includes("toggle")
   ) {
     let replaced = recognizedText
       .replace("bascule", "")
@@ -210,19 +201,54 @@ export const logic = async (recognizedText) => {
       .getUserInfo()
       .devices.filter(
         (d) =>
-          removeDiacritics(d.name.toLowerCase()).includes(
-            removeDiacritics(replaced.toLowerCase())
-          ) && d.dev_type == "switch"
+          replaced.includes(removeDiacritics(d.name.trim().toLowerCase())) &&
+          d.dev_type == "switch"
       );
     let device = devices.shift();
-    console.log(smartlife.getUserInfo().devices, devices, device);
+    console.log(devices, device);
     await smartlife.toggleDevice(device);
+  } else if (
+    recognizedText.includes("allume") ||
+    recognizedText.includes("ouvre") ||
+    recognizedText.includes("turn on") ||
+    recognizedText.includes("open") ||
+    recognizedText.includes("etein") ||
+    recognizedText.includes("ferme") ||
+    recognizedText.includes("turn off") ||
+    recognizedText.includes("close")
+  ) {
+    let replaced = recognizedText
+      .replace("allume", "")
+      .replace("ouvre", "")
+      .replace("turn on", "")
+      .replace("open", "")
+      .replace("etein", "")
+      .replace("ferme", "")
+      .replace("turn off", "")
+      .replace("close", "")
+      .trim();
+    let devices = smartlife
+      .getUserInfo()
+      .devices.filter(
+        (d) =>
+          replaced.includes(removeDiacritics(d.name.trim().toLowerCase())) &&
+          d.dev_type == "switch"
+      );
+    let device = devices.shift();
+    console.log(devices, device);
+    let onOrOff =
+      recognizedText.includes("allume") ||
+      recognizedText.includes("ouvre") ||
+      recognizedText.includes("turn on") ||
+      recognizedText.includes("open");
+    await smartlife.adjustDevice(device, "turnOnOff", "value", onOrOff ? 1 : 0);
   } else if (recognizedText.includes("vois") || recognizedText.includes("see"))
     await ollamaVision(recognizedText, speak, null);
   else if (recognizedText.includes("think") || recognizedText.includes("pense"))
     await ollamaChat(recognizedText, speak, "deepseek-r1:1.5b");
   else await ollamaChat(recognizedText, speak);
   setProcessing(false);
+  sendToAll("loading:false");
 };
 
 let selectedHotwordRecognition = process.env.CUSTOM ? customHotword : hotword;
@@ -276,9 +302,7 @@ try {
       rl.question("Enter text: ", async (answer) => {
         console.log("text entered: ", answer);
         question();
-        sendToAll("loading:true");
         await logic(answer);
-        sendToAll("loading:false");
       });
     question();
   })();

@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import puppeteer from "puppeteer";
 import ffmpeg from "fluent-ffmpeg";
 import { spawn } from "child_process";
+import { sendToAll } from "../utils/ws";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -75,7 +76,11 @@ const generateTxt2Img = async (prompt, saveToFile = false) => {
 };
 
 // Generate a single frame using img2img
-const generateImg2Img = async (prompt, initImageBuffer, denoisingStrength) => {
+const generateImg2Img = async (
+  prompt,
+  initImageBuffer,
+  denoisingStrength = 0.1
+) => {
   try {
     const response = await fetch(stableDiffusionUrlImg2Img, {
       method: "POST",
@@ -108,7 +113,7 @@ const generateVideoFrames = async (
   saveToFile = false
 ) => {
   const frames = [];
-  let previousFrameBuffer = (await generateTxt2Img(basePrompt)).buffer;
+  let previousFrameBuffer = (await generateTxt2Img(basePrompt))?.buffer;
 
   if (saveToFile) saveImageToFile(previousFrameBuffer, "frame_001.png");
   frames.push(previousFrameBuffer);
@@ -160,6 +165,15 @@ const createVideoFromFrames = (fps, deleteFramesAfter = true) => {
     .output(videoOutputPath)
     .on("end", () => {
       console.log(`Video created at ${videoOutputPath}`);
+      fs.readFile(videoOutputPath, (err, data) => {
+        if (err) {
+          console.error("\nError reading the MP4 file:", err);
+          return;
+        }
+        console.log("\nSending MP4 file...");
+        // Send the WAV file as binary data
+        sendToAll(data, true);
+      });
       if (deleteFramesAfter) {
         // Delete frames
         fs.readdir(outputFolder, (err, files) => {
