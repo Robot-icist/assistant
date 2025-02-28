@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import puppeteer from "puppeteer";
 import ffmpeg from "fluent-ffmpeg";
 import { spawn } from "child_process";
-import { sendToAll } from "../utils/ws";
+import { sendToAll } from "../utils/ws.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
