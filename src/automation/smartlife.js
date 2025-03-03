@@ -33,7 +33,7 @@ async function makeRequest(url, data, method = "POST", headers = {}) {
       data: data,
       headers: { "Content-Type": "application/json", ...headers },
     });
-    console.log(response.data);
+    console.log(JSON.stringify(response.data, null, 2));
     return response.data;
   } catch (error) {
     console.error("Error with Tuya API:", error);
