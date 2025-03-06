@@ -27,3 +27,22 @@ DISKPART> compact vdisk
 DiskPart a correctement compacté le fichier de disque virtuel.
 
 DISKPART>
+
+
+docker system prune -a --volumes
+
+
+net stop com.docker.service
+taskkill /IM "docker.exe" /F
+taskkill /IM "Docker Desktop.exe" /F
+wsl --shutdown
+((@"
+select vdisk file="C:\Users\Gille\AppData\Local\Docker\wsl\disk\docker_data.vhdx"
+attach vdisk readonly
+compact vdisk
+detach vdisk
+exit
+"@
+)|diskpart)
+net start com.docker.service
+. "C:\Program Files\Docker\Docker\Docker Desktop.exe"

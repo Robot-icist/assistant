@@ -51,6 +51,7 @@ import "dotenv/config";
 import smartlife from "./src/automation/smartlife.js";
 import path from "path";
 import { fileURLToPath } from "url";
+import { whisper } from "./src/voice/whisper.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name of the directory
 
@@ -90,6 +91,10 @@ if (process.env.VIDEO) {
   } else sadTalkerProcess.start();
 }
 
+if (process.env.WHISPER) {
+  whisper.start();
+}
+
 preventSleep.enable();
 // Graceful shutdown on interrupt signal
 process.on("SIGINT", async () => {
@@ -101,20 +106,19 @@ process.on("SIGINT", async () => {
 });
 
 export const Kill = async () => {
-  if (process.env.TTS) {
-    await new Promise((res, rej) => {
-      exec("taskkill /f /im python.exe", (error, stdout, stderr) => {
-        if (error) {
-          console.error(`exec error: ${error}`);
-          rej(error);
-          return;
-        }
-        console.log(`stdout: ${stdout}`);
-        console.error(`stderr: ${stderr}`);
-        res();
-      });
+  Stop();
+  await new Promise((res, rej) => {
+    exec("taskkill /f /im python.exe", (error, stdout, stderr) => {
+      if (error) {
+        console.error(`exec error: ${error}`);
+        rej(error);
+        return;
+      }
+      console.log(`stdout: ${stdout}`);
+      console.error(`stderr: ${stderr}`);
+      res();
     });
-  }
+  });
   process.kill(process.pid, "SIGINT");
 };
 
@@ -197,13 +201,10 @@ export const logic = async (recognizedText) => {
       .replace("bascule", "")
       .replace("toggle", "")
       .trim();
-    let devices = smartlife
-      .getUserInfo()
-      .devices.filter(
-        (d) =>
-          replaced.includes(removeDiacritics(d.name.trim().toLowerCase())) &&
-          d.dev_type == "switch"
-      );
+    let devices = smartlife.getUserInfo().devices.filter(
+      (d) => replaced.includes(removeDiacritics(d.name.trim().toLowerCase())) //&&
+      // d.dev_type == "switch"
+    );
     let device = devices.shift();
     console.log(devices, device);
     await smartlife.toggleDevice(device);
@@ -227,13 +228,10 @@ export const logic = async (recognizedText) => {
       .replace("turn off", "")
       .replace("close", "")
       .trim();
-    let devices = smartlife
-      .getUserInfo()
-      .devices.filter(
-        (d) =>
-          replaced.includes(removeDiacritics(d.name.trim().toLowerCase())) &&
-          d.dev_type == "switch"
-      );
+    let devices = smartlife.getUserInfo().devices.filter(
+      (d) => replaced.includes(removeDiacritics(d.name.trim().toLowerCase())) // &&
+      // d.dev_type == "switch"
+    );
     let device = devices.shift();
     console.log(devices, device);
     let onOrOff =
@@ -241,7 +239,12 @@ export const logic = async (recognizedText) => {
       recognizedText.includes("ouvre") ||
       recognizedText.includes("turn on") ||
       recognizedText.includes("open");
-    await smartlife.adjustDevice(device, "turnOnOff", "value", onOrOff ? 1 : 0);
+    await smartlife.adjustDevice(
+      device,
+      "turnOnOff",
+      "value",
+      device.dev_type == "scene" ? 1 : onOrOff ? 1 : 0
+    );
   } else if (recognizedText.includes("vois") || recognizedText.includes("see"))
     await ollamaVision(recognizedText, speak, null);
   else if (recognizedText.includes("think") || recognizedText.includes("pense"))

@@ -37,6 +37,8 @@ const makeLocalTunnel = async (port = 80, subdomain = "personalassistant") => {
 
 const pageKite = true;
 
+const subdomain = "passistant";
+
 export const tunnel = async () => {
   if (pageKite) {
     runExecutableWithArgs(
@@ -46,8 +48,12 @@ export const tunnel = async () => {
         "80",
         "ws-passistant.pagekite.me",
         "AND",
+        "10000",
+        "whisper-passistant.pagekite.me",
+        "AND",
         "1234",
         "passistant.pagekite.me",
+
         // "+ip/92.184.112=ok",
       ],
       console.log
@@ -55,5 +61,6 @@ export const tunnel = async () => {
   } else {
     await makeLocalTunnel(80, "wspassistant");
     await makeLocalTunnel(1234, "passistant");
+    await makeLocalTunnel(10000, "whisperpassistant");
   }
 };

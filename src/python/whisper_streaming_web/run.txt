@@ -1,0 +1,16 @@
+python whisper_fastapi_online_server.py --host 0.0.0.0 --port 10000 --min-chunk-size 1 --model small --vad
+
+
+Downloading protobuf-6.30.0-cp39-cp39-win_amd64.whl (431 kB)
+Installing collected packages: protobuf
+  Attempting uninstall: protobuf
+    Found existing installation: protobuf 3.19.6
+    Uninstalling protobuf-3.19.6:
+      Successfully uninstalled protobuf-3.19.6
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+mediapipe 0.10.18 requires protobuf<5,>=4.25.3, but you have protobuf 6.30.0 which is incompatible.
+tensorflow-intel 2.10.0 requires protobuf<3.20,>=3.9.2, but you have protobuf 6.30.0 which is incompatible.
+tensorboard 2.10.1 requires protobuf<3.20,>=3.9.2, but you have protobuf 6.30.0 which is incompatible.
+tensorboard 2.10.1 requires tensorboard-data-server<0.7.0,>=0.6.0, but you have tensorboard-data-server 0.7.2 which is incompatible.
+tensorflow 2.10.1 requires protobuf<3.20,>=3.9.2, but you have protobuf 6.30.0 which is incompatible.
+Successfully installed protobuf-5.29.3
