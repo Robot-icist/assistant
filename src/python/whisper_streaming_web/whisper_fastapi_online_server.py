@@ -17,10 +17,12 @@ import math
 import logging
 from datetime import timedelta
 import traceback
-# import torch
+import torch
+import gc
 import sys
+import os
 
-# torch.cuda.set_per_process_memory_fraction(0.6, device=0)
+torch.cuda.set_per_process_memory_fraction(0.6, device=0)
 
 def format_time(seconds):
     return str(timedelta(seconds=int(seconds)))
@@ -183,6 +185,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+print("WHISPER Service Ready")
 
 # Load demo HTML for the root endpoint
 with open("web/live_transcription.html", "r", encoding="utf-8") as f:
@@ -216,10 +219,12 @@ async def transcription_processor(shared_state, pcm_queue, online):
             
             logger.info(f"{len(online.audio_buffer) / online.SAMPLING_RATE} seconds of audio will be processed by the model.")
             
+            torch.cuda.empty_cache()
+            gc.collect()
             # Process transcription
             online.insert_audio_chunk(pcm_array)
             new_tokens = online.process_iter()
-            
+                
             if new_tokens:
                 full_transcription += sep.join([t.text for t in new_tokens])
                 
@@ -232,12 +237,14 @@ async def transcription_processor(shared_state, pcm_queue, online):
                 
             await shared_state.update_transcription(
                 new_tokens, buffer, end_buffer, full_transcription, sep)
-            
+             
         except Exception as e:
             logger.warning(f"Exception in transcription_processor: {e}")
             logger.warning(f"Traceback: {traceback.format_exc()}")
         finally:
             pcm_queue.task_done()
+            torch.cuda.empty_cache()
+            gc.collect()
 
 async def diarization_processor(shared_state, pcm_queue, diarization_obj):
     buffer_diarization = ""
@@ -265,6 +272,7 @@ async def diarization_processor(shared_state, pcm_queue, diarization_obj):
             logger.warning(f"Traceback: {traceback.format_exc()}")
         finally:
             pcm_queue.task_done()
+            
 
 async def results_formatter(shared_state, websocket):
     while True:
@@ -380,8 +388,8 @@ async def websocket_endpoint(websocket: WebSocket):
     pcm_buffer = bytearray()
     shared_state = SharedState()
     
-    transcription_queue = asyncio.Queue() if args.transcription else None
-    diarization_queue = asyncio.Queue() if args.diarization else None
+    transcription_queue = asyncio.Queue(10) if args.transcription else None
+    diarization_queue = asyncio.Queue(10) if args.diarization else None
     
     online = None
 
@@ -390,7 +398,8 @@ async def websocket_endpoint(websocket: WebSocket):
         if ffmpeg_process:
             try:
                 ffmpeg_process.kill()
-                await asyncio.get_event_loop().run_in_executor(None, ffmpeg_process.wait)
+                loop = asyncio.get_event_loop()
+                await asyncio.wait_for(loop.run_in_executor(None, ffmpeg_process.wait), timeout=2)
             except Exception as e:
                 logger.warning(f"Error killing FFmpeg process: {e}")
         ffmpeg_process = await start_ffmpeg_decoder()
@@ -442,6 +451,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 if not chunk:
                     logger.info("FFmpeg stdout closed. Restarting...")
                     await restart_ffmpeg()  # Gracefully restart if the stream ends
+                    # restart_program()
                     continue
                 pcm_buffer.extend(chunk)
                 if len(pcm_buffer) >= BYTES_PER_SEC:
@@ -511,7 +521,8 @@ async def websocket_endpoint(websocket: WebSocket):
             try:
                 ffmpeg_process.stdin.close()
                 ffmpeg_process.kill()  # Ensure it's forcefully stopped
-                ffmpeg_process.wait(timeout=2)  # Avoid indefinite waiting
+                loop = asyncio.get_event_loop()
+                await asyncio.wait_for(loop.run_in_executor(None, ffmpeg_process.wait), timeout=2)
             except Exception as e:
                 logger.warning(f"Error stopping FFmpeg: {e}")
         
@@ -519,6 +530,24 @@ async def websocket_endpoint(websocket: WebSocket):
             diarization.close()
         
         logger.info("WebSocket endpoint cleaned up.")
+
+def restart_program():
+  """Restarts the current Python program.
+
+  This function re-executes the current script with the same arguments
+  and environment. It works by using `os.execv` which replaces the
+  current process with a new one.
+  """
+
+  try:
+    python = sys.executable
+    os.execv(python, [python] + sys.argv)  # Replace current process
+  except FileNotFoundError:
+    print("Python executable not found.")
+    sys.exit(1) # Indicate failure
+  except Exception as e:
+    print(f"Error during restart: {e}")
+    sys.exit(1) # Indicate failure
 
 if __name__ == "__main__":
     import uvicorn

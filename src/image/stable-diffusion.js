@@ -55,12 +55,13 @@ const generateTxt2Img = async (prompt, saveToFile = false) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         prompt,
+        negative_prompt: "blurry, watermark, text, copyright, logo",
         width: 512,
         height: 512,
         samples: 1,
-        steps: 20,
+        steps: 30,
         seed: -1,
-        cfg_scale: 7,
+        cfg_scale: 10,
         // restore_faces: false,
       }),
     });
@@ -87,6 +88,7 @@ const generateImg2Img = async (
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         prompt,
+        negative_prompt: "blurry, watermark, text, copyright, logo",
         init_images: [
           `data:image/png;base64,${initImageBuffer.toString("base64")}`,
         ],
@@ -94,8 +96,8 @@ const generateImg2Img = async (
         height: 512,
         samples: 1,
         seed: -1,
-        steps: 20,
-        cfg_scale: 7,
+        steps: 30,
+        cfg_scale: 10,
         denoising_strength: denoisingStrength,
       }),
     });

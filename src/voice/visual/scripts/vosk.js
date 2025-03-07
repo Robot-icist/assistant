@@ -41,10 +41,11 @@ async function startVoiceRecognition(
     if (cb) cb(result);
   });
 
-  //   recognizer.on("partialresult", (message) => {
-  //     const partial = message.result.partial;
-  //     // if (partial !== "") console.log(JSON.stringify(message.result, null, 2));
-  //   });
+  recognizer.on("partialresult", (message) => {
+    const partial = message.result.partial;
+    // if (partial !== "") console.log(JSON.stringify(message.result, null, 2));
+    displayText(partial);
+  });
 
   mediaStream = await navigator.mediaDevices.getUserMedia({
     video: false,

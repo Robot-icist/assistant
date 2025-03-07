@@ -299,12 +299,61 @@ assistantFolder.add(params, "alwaysOn").onChange(async (value) => {
 
 let mouseX = 0;
 let mouseY = 0;
+
 document.addEventListener("mousemove", (e) => {
   let windowHalfX = window.innerWidth / 2;
   let windowHalfY = window.innerHeight / 2;
   mouseX = (e.clientX - windowHalfX) / 100;
   mouseY = (e.clientY - windowHalfY) / 100;
 });
+
+// Accelerometer/Gyro version
+function handleMotion(event) {
+  let alpha = event.alpha; // Rotation around Z axis (compass direction)  (optional)
+  let beta = event.beta; // Rotation around X axis (front-to-back tilt)
+  let gamma = event.gamma; // Rotation around Y axis (left-to-right tilt)
+
+  // Adjust sensitivity values to your liking. Experiment!
+  const betaSensitivity = 20; // Higher values reduce sensitivity
+  const gammaSensitivity = 20; // Higher values reduce sensitivity
+
+  // Normalize the accelerometer data to a range suitable for screen coordinates.
+  // You'll likely need to tweak these calculations to find the right feel.
+  let windowHalfX = window.innerWidth / 2;
+  let windowHalfY = window.innerHeight / 2;
+
+  // Use beta and gamma to influence mouseX and mouseY.  Invert the signs if needed.
+  mouseX = gamma / gammaSensitivity; // Gamma controls horizontal movement
+  mouseY = beta / betaSensitivity; // Beta controls vertical movement
+
+  // Scale mouseX and mouseY to fit within the desired range.  Important for accurate positioning
+  mouseX = (mouseX * windowHalfX) / 100;
+  mouseY = (mouseY * windowHalfY) / 100;
+}
+
+// Function to request and enable device motion events
+function enableMotionControl() {
+  if (typeof DeviceMotionEvent.requestPermission === "function") {
+    // iOS 13+ requires explicit permission
+    DeviceMotionEvent.requestPermission()
+      .then((permissionState) => {
+        if (permissionState === "granted") {
+          window.addEventListener("deviceorientation", handleMotion);
+          console.log("Motion control enabled");
+        } else {
+          console.warn("Motion control permission denied.");
+          // Optionally, display an error message to the user.
+        }
+      })
+      .catch(console.error); // Handle potential errors in permission request
+  } else {
+    // Non-iOS 13+ (or if permission has already been granted)
+    window.addEventListener("deviceorientation", handleMotion);
+    console.log("Motion control enabled");
+  }
+}
+
+enableMotionControl();
 
 const clock = new THREE.Clock();
 

@@ -310,7 +310,7 @@
           // Handle messages from server
           websocket.onmessage = (event) => {
             const data = JSON.parse(event.data);
-
+            console.log(data);
             const {
               lines = [],
               buffer_transcription = "",

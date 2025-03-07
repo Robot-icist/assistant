@@ -1,11 +1,90 @@
+// const displayText = (
+//   text,
+//   timeout = 5000,
+//   fontFamily = "Doto",
+//   stream = false,
+//   id = "text-display"
+// ) => {
+//   if (text == "") return document.getElementById(id)?.remove();
+//   let textDisplay = document.getElementById(id);
+//   if (!textDisplay) {
+//     textDisplay = document.createElement("div");
+//     textDisplay.id = id;
+//     textDisplay.style.fontFamily = fontFamily;
+//     textDisplay.style.position = "fixed";
+//     textDisplay.style.top = "0";
+//     textDisplay.style.left = "50%";
+//     textDisplay.style.transform = "translateX(-50%)";
+//     textDisplay.style.padding = "10px 20px";
+//     textDisplay.style.background = "rgba(0, 0, 0, 0.8)";
+//     textDisplay.style.color = "white";
+//     textDisplay.style.fontSize = /Mobi|Android|iPhone|iPad|iPod/i.test(
+//       navigator.userAgent
+//     )
+//       ? "12px"
+//       : "24px";
+//     textDisplay.style.borderRadius = "10px";
+//     textDisplay.style.height = "auto";
+//     textDisplay.style.width = "auto";
+//     textDisplay.style.maxWidth = "90%";
+//     textDisplay.style.maxHeight = "33vh";
+//     textDisplay.style.overflowY = "scroll";
+//     textDisplay.style.overflowX = "scroll";
+//     textDisplay.style.wordBreak = "break-word";
+//     textDisplay.style.whiteSpace = "normal";
+//     textDisplay.style.scrollbarWidth = "none";
+//     textDisplay.style.transition =
+//       "opacity 0.5s ease-in-out, top 1s ease-in-out";
+//     textDisplay.style.opacity = "0";
+//     document.body.appendChild(textDisplay);
+
+//     // Attach event listeners to reset timeout on interaction
+//     const resetTimeout = () => {
+//       clearTimeout(textDisplay.timeout);
+//       textDisplay.timeout = setTimeout(() => {
+//         textDisplay.style.opacity = "0";
+//         textDisplay.style.top = "0";
+//         textDisplay.remove();
+//       }, timeout);
+//     };
+
+//     textDisplay.addEventListener("touchstart", resetTimeout);
+//     textDisplay.addEventListener("scroll", resetTimeout);
+//     textDisplay.addEventListener("mousemove", resetTimeout);
+//     textDisplay.addEventListener("click", resetTimeout);
+//     textDisplay.addEventListener("hover", resetTimeout);
+//   }
+
+//   if (stream) textDisplay.textContent += text;
+//   else textDisplay.textContent = text;
+
+//   textDisplay.style.opacity = "1";
+//   textDisplay.style.top = /Mobi|Android|iPhone|iPad|iPod/i.test(
+//     navigator.userAgent
+//   )
+//     ? "30vh"
+//     : "33vh";
+//   textDisplay.scrollTop = textDisplay.scrollHeight;
+//   textDisplay.scrollLeft = textDisplay.scrollWidth;
+
+//   clearTimeout(textDisplay.timeout);
+//   textDisplay.timeout = setTimeout(() => {
+//     textDisplay.style.opacity = "0";
+//     textDisplay.style.top = "0";
+//     textDisplay.remove();
+//   }, timeout);
+// };
+
 const displayText = (
   text,
   timeout = 5000,
   fontFamily = "Doto",
   stream = false,
-  id = "text-display"
+  id = "text-display",
+  allowHTML = false
 ) => {
   if (text == "") return document.getElementById(id)?.remove();
+
   let textDisplay = document.getElementById(id);
   if (!textDisplay) {
     textDisplay = document.createElement("div");
@@ -55,8 +134,12 @@ const displayText = (
     textDisplay.addEventListener("hover", resetTimeout);
   }
 
-  if (stream) textDisplay.textContent += text;
-  else textDisplay.textContent = text;
+  if (allowHTML) {
+    textDisplay.innerHTML = text; // Use innerHTML for HTML rendering
+  } else {
+    if (stream) textDisplay.textContent += text;
+    else textDisplay.textContent = text;
+  }
 
   textDisplay.style.opacity = "1";
   textDisplay.style.top = /Mobi|Android|iPhone|iPad|iPod/i.test(

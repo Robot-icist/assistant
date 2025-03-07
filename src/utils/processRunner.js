@@ -4,6 +4,47 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name of the directory
 
+export async function killProcessByPort(port) {
+  return new Promise((resolve, reject) => {
+    const command = `netstat -ano | findstr :${port}`; // Windows command
+    // const command = `lsof -i :${port} | awk 'NR==2 {print $2}'`;  // Linux/macOS command
+
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error executing command: ${error}`);
+        return reject(error);
+      }
+
+      if (!stdout) {
+        console.log(`No process found listening on port ${port}`);
+        return resolve();
+      }
+
+      let lines = stdout.trim().split("\n");
+      // lines = [lines[0]];
+      for (const line of lines) {
+        const parts = line.trim().split(/\s+/); // Split by spaces
+        const state = parts[3];
+        const pid = parts[4]; // PID is in the 5th column for the given netstat output
+        console.log(line, state, pid);
+        if (state == "LISTENING" && pid) {
+          console.log(`Killing process with PID ${pid} on port ${port}`);
+          try {
+            process.kill(parseInt(pid), "SIGKILL"); // Forcefully kill the process
+            console.log(`Process with PID ${pid} killed successfully.`);
+          } catch (killError) {
+            console.error(
+              `Error killing process with PID ${pid}: ${killError}`
+            );
+          }
+        }
+      }
+
+      resolve();
+    });
+  });
+}
+
 /**
  * Runs an executable with the provided arguments and passes stdout/stderr data back to the callback.
  *

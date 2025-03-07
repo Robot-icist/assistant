@@ -56,6 +56,7 @@
     "node-prevent-sleep": "^0.0.4",
     "ollama": "^0.5.10",
     "onnxruntime-node": "^1.20.1",
+    "ps-node": "^0.1.6",
     "puppeteer": "^1.20.0",
     "say": "^0.16.0",
     "sharp": "^0.33.5",
