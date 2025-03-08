@@ -44,6 +44,7 @@ const params = {
   speaker: 0,
   video: false,
   google: false,
+  whisper: false,
   alwaysOn: false,
   keepInMemory: false,
 };
@@ -283,6 +284,10 @@ assistantFolder.add(params, "video").onChange((value) => {
 
 assistantFolder.add(params, "google").onChange((value) => {
   params.google = value;
+});
+
+assistantFolder.add(params, "whisper").onChange((value) => {
+  params.whisper = value;
 });
 
 assistantFolder.add(params, "alwaysOn").onChange(async (value) => {

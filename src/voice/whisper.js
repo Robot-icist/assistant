@@ -65,7 +65,7 @@ class WhisperProcess {
       if (output.includes("WHISPER Service Ready")) {
         this.isReady = true;
         this._processQueue();
-        this._startActivityCheck(); // Start the activity check when ready
+        // this._startActivityCheck(); // Start the activity check when ready
       }
       // if (
       //   output.includes("FFmpeg stdout closed") ||
@@ -73,6 +73,15 @@ class WhisperProcess {
       // ) {
       //   this._cleanupAndRestart();
       // }
+      if (output.includes("connection open")) {
+        this._startActivityCheck();
+      }
+      if (output.includes("connection closed")) {
+        this._stopActivityCheck();
+      }
+      if (output.includes("Application startup complete")) {
+        this._stopActivityCheck();
+      }
     });
 
     this.process.stderr.on("data", (data) => {

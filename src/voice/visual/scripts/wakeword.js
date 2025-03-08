@@ -3,29 +3,41 @@ import { sendParams, stopProcessing } from "./main.js";
 
 const SENSITIVITIES = new Float32Array([0.75]);
 
+const logic = async (text) => {
+  if (text.trim() === "") return;
+  const params = getParams();
+  !params.alwaysOn && params.whisper && (await toggleRecording(() => {}));
+  !params.alwaysOn && stopVoiceRecognition();
+  !params.alwaysOn && changeColor("deepskyblue");
+  console.log("recognized", text);
+  !params.whisper && displayText(text);
+  if (
+    text.toLowerCase().includes("vois") ||
+    text.toLowerCase().includes("see")
+  ) {
+    sendParams();
+    let front =
+      text.toLowerCase().includes("devant") ||
+      text.toLowerCase().includes("front");
+
+    return await takePicture(front ? "user" : "environment");
+  } else if (text.toLowerCase().includes("stop")) {
+    stopProcessing();
+  } else sendParams(text);
+};
+
 export const processCallback = async (wakeword) => {
   console.log("Recognized WakeWord:", wakeword);
   changeColor("gold");
   const params = getParams();
-  await startVoiceRecognition("/scripts/" + params.model, async (data) => {
-    !params.alwaysOn && stopVoiceRecognition();
-    !params.alwaysOn && changeColor("deepskyblue");
-    console.log("recognized", data);
-    displayText(data.text);
-    if (
-      data.text.toLowerCase().includes("vois") ||
-      data.text.toLowerCase().includes("see")
-    ) {
-      sendParams();
-      let front =
-        data.text.toLowerCase().includes("devant") ||
-        data.text.toLowerCase().includes("front");
-
-      return await takePicture(front ? "user" : "environment");
-    } else if (data.text.toLowerCase().includes("stop")) {
-      stopProcessing();
-    } else sendParams(data.text);
-  });
+  if (params.whisper) {
+    await toggleRecording(async (text) => {
+      await logic(text);
+    });
+  } else
+    await startVoiceRecognition("/scripts/" + params.model, async (data) => {
+      await logic(data.text);
+    });
 };
 
 let audioManagerErrorCallback = (ex) => {

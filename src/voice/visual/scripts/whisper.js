@@ -103,7 +103,8 @@ else websocketUrl = `wss://whisper${subdomain}.loca.lt/asr`;
 let userClosing = false;
 let displayTimeout = 10000;
 let fontFamily = "Doto";
-
+let timeout = null;
+let callback = null;
 // Add a flag to prevent multiple connection attempts.
 let isConnecting = false;
 
@@ -137,6 +138,7 @@ function setupWebSocket() {
         ? "WebSocket closed by user."
         : "Disconnected from the WebSocket server.";
       console.log(message);
+      if (userClosing) return;
       userClosing = false;
       delete websocket;
       websocket = null; // Ensure websocket is nullified on close
@@ -170,6 +172,7 @@ function setupWebSocket() {
     };
 
     websocket.onmessage = (event) => {
+      clearTimeout(timeout);
       const data = JSON.parse(event.data);
       console.log("Received data:", data);
       const {
@@ -218,6 +221,10 @@ function setupWebSocket() {
         if (textContent) {
           displayHTML += `${speakerLabel}<br/><div class='textcontent'>${textContent}</div><br>`; // Added <br> for spacing
           plainText += textContent + " "; // Accumulate plain text
+
+          timeout = setTimeout(() => {
+            callback(textContent);
+          }, 2500);
         }
       });
 
@@ -266,7 +273,8 @@ function stopRecording() {
   }
 }
 
-async function toggleRecording() {
+async function toggleRecording(cb) {
+  callback = cb;
   if (!isRecording) {
     try {
       await setupWebSocket();
@@ -283,15 +291,7 @@ async function toggleRecording() {
   }
 }
 
-// Initialization
-(async () => {
-  await toggleRecording(); // Start recording initially
-
-  //   // Periodic toggling logic (every 1 minute)
-  //   setInterval(async () => {
-  //     stopRecording(); // Stop recording first
-  //     setTimeout(async () => {
-  //       await toggleRecording(); // Then start again after a short delay
-  //     }, 10); // Short delay to ensure stop completes. Adjust if needed.
-  //   }, 1 * 60 * 1000);
-})();
+// // Initialization
+// (async () => {
+//   await toggleRecording(); // Start recording initially
+// })();
