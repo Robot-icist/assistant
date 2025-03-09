@@ -138,7 +138,7 @@ function setupWebSocket() {
         ? "WebSocket closed by user."
         : "Disconnected from the WebSocket server.";
       console.log(message);
-      if (userClosing) return;
+      if (userClosing) return (userClosing = false);
       userClosing = false;
       delete websocket;
       websocket = null; // Ensure websocket is nullified on close
@@ -146,19 +146,8 @@ function setupWebSocket() {
       stopRecording(); // Stop recording on close
       // Reconnect logic:  Wait and then attempt reconnection
       setTimeout(async () => {
-        // if (!isRecording) {
-        //   //Only reconnect if we are supposed to be recording (after the initial toggle)
-        //   return;
-        // }
         console.log("Attempting to reconnect...");
-        await setupWebSocket();
-        if (websocket && websocket.readyState === WebSocket.OPEN) {
-          console.log("Successfully reconnected.");
-          // Optionally restart recording here if needed
-          await startRecording();
-        } else {
-          console.log("Reconnection failed.");
-        }
+        await toggleRecording(callback);
       }, 1000);
     };
 
@@ -166,9 +155,13 @@ function setupWebSocket() {
       console.error("Error connecting to WebSocket:", error);
       isConnecting = false; // Reset the flag on error
       stopRecording(); // Stop recording on close
-      //   reject(new Error("Error connecting to WebSocket"));
+      reject(new Error("Error connecting to WebSocket"));
       delete websocket;
       websocket = null;
+      setTimeout(async () => {
+        console.log("Attempting to reconnect...");
+        await toggleRecording(callback);
+      }, 1000);
     };
 
     websocket.onmessage = (event) => {
@@ -195,15 +188,15 @@ function setupWebSocket() {
 
         let speakerLabel = "";
 
-        if (item.speaker === -2) {
-          speakerLabel = `<span class="silence">Silence<span id='timeInfo'>${timeInfo}</span></span>`;
-        } else if (item.speaker === 0) {
-          speakerLabel = `<span class='loading'><span class="spinner"></span><span id='timeInfo'>${remaining_time_diarization} second(s) of audio are undergoing diarization</span></span>`;
-        } else if (item.speaker == -1) {
-          speakerLabel = `<span id="speaker"><span id='timeInfo'>${timeInfo}</span></span>`;
-        } else if (item.speaker !== -1) {
-          speakerLabel = `<span id="speaker">Speaker ${item.speaker}<span id='timeInfo'>${timeInfo}</span></span>`;
-        }
+        // if (item.speaker === -2) {
+        //   speakerLabel = `<span class="silence">Silence<span id='timeInfo'>${timeInfo}</span></span>`;
+        // } else if (item.speaker === 0) {
+        //   speakerLabel = `<span class='loading'><span class="spinner"></span><span id='timeInfo'>${remaining_time_diarization} second(s) of audio are undergoing diarization</span></span>`;
+        // } else if (item.speaker == -1) {
+        //   speakerLabel = `<span id="speaker"><span id='timeInfo'>${timeInfo}</span></span>`;
+        // } else if (item.speaker !== -1) {
+        //   speakerLabel = `<span id="speaker">Speaker ${item.speaker}<span id='timeInfo'>${timeInfo}</span></span>`;
+        // }
 
         let textContent = item.text;
 
@@ -222,8 +215,8 @@ function setupWebSocket() {
           displayHTML += `${speakerLabel}<br/><div class='textcontent'>${textContent}</div><br>`; // Added <br> for spacing
           plainText += textContent + " "; // Accumulate plain text
 
-          timeout = setTimeout(() => {
-            callback(textContent);
+          timeout = setTimeout(async () => {
+            if (callback) callback(null, textContent);
           }, 2500);
         }
       });
@@ -260,6 +253,7 @@ async function startRecording() {
 }
 
 function stopRecording() {
+  if (isConnecting) return;
   userClosing = true;
   if (recorder) {
     recorder.stop();
@@ -285,6 +279,7 @@ async function toggleRecording(cb) {
       }
     } catch (err) {
       console.error("Failed to start recording:", err);
+      if (callback) callback(err);
     }
   } else {
     stopRecording();

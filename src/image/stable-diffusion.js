@@ -61,8 +61,8 @@ const generateTxt2Img = async (prompt, saveToFile = false) => {
         samples: 1,
         steps: 30,
         seed: -1,
-        cfg_scale: 10,
-        // restore_faces: false,
+        cfg_scale: 7,
+        // restore_faces: true,
       }),
     });
     const data = await response.json();
@@ -97,7 +97,7 @@ const generateImg2Img = async (
         samples: 1,
         seed: -1,
         steps: 30,
-        cfg_scale: 10,
+        cfg_scale: 7,
         denoising_strength: denoisingStrength,
       }),
     });
@@ -157,7 +157,7 @@ async function startVideo(url) {
 }
 
 // Create a video from frames
-const createVideoFromFrames = (fps, deleteFramesAfter = true) => {
+const createVideoFromFrames = (fps, deleteFramesAfter = true, show = false) => {
   const videoOutputPath = path.join(outputFolder, "generated_video.mp4");
 
   ffmpeg()
@@ -190,7 +190,7 @@ const createVideoFromFrames = (fps, deleteFramesAfter = true) => {
           }
         });
       }
-      startVideo(videoOutputPath);
+      if (show) startVideo(videoOutputPath);
     })
     .on("error", (err) => console.error("Error creating video:", err.message))
     .run();
@@ -199,8 +199,8 @@ const createVideoFromFrames = (fps, deleteFramesAfter = true) => {
 // Export functions for modular usage
 export const generateImage = async (
   prompt,
-  displayInBrowser = false,
-  saveToFile = false
+  saveToFile = false,
+  displayInBrowser = false
 ) => {
   const { buffer, base64Image } = await generateTxt2Img(prompt, saveToFile);
   if (displayInBrowser) {
@@ -214,14 +214,15 @@ export const generateVideo = async (
   basePrompt,
   fps,
   lengthInSeconds,
-  saveframes = true
+  saveframes = false,
+  show = false
 ) => {
   const frames = await generateVideoFrames(
     basePrompt,
     fps * lengthInSeconds,
     saveframes
   );
-  createVideoFromFrames(fps);
+  createVideoFromFrames(fps, !saveframes, show);
 };
 
 // // Example usage:

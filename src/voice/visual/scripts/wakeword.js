@@ -4,26 +4,40 @@ import { sendParams, stopProcessing } from "./main.js";
 const SENSITIVITIES = new Float32Array([0.75]);
 
 const logic = async (text) => {
-  if (text.trim() === "") return;
-  const params = getParams();
-  !params.alwaysOn && params.whisper && (await toggleRecording(() => {}));
-  !params.alwaysOn && stopVoiceRecognition();
-  !params.alwaysOn && changeColor("deepskyblue");
-  console.log("recognized", text);
-  !params.whisper && displayText(text);
-  if (
-    text.toLowerCase().includes("vois") ||
-    text.toLowerCase().includes("see")
-  ) {
-    sendParams();
-    let front =
-      text.toLowerCase().includes("devant") ||
-      text.toLowerCase().includes("front");
+  try {
+    if (text?.trim() === "") return;
+    const params = getParams();
+    !params.alwaysOn && params.whisper && (await toggleRecording());
+    !params.alwaysOn && stopVoiceRecognition();
+    !params.alwaysOn && changeColor("deepskyblue");
+    console.log("recognized", text);
+    !params.whisper && displayText(text);
+    if (
+      text.toLowerCase().includes("vois") ||
+      text.toLowerCase().includes("see")
+    ) {
+      sendParams();
+      let front =
+        text.toLowerCase().includes("devant") ||
+        text.toLowerCase().includes("front");
 
-    return await takePicture(front ? "user" : "environment");
-  } else if (text.toLowerCase().includes("stop")) {
-    stopProcessing();
-  } else sendParams(text);
+      return await takePicture(front ? "user" : "environment");
+    } else if (text.toLowerCase().includes("stop")) {
+      stopProcessing();
+    } else sendParams(text);
+  } catch (error) {
+    console.log("Error processing text:", error);
+  }
+};
+
+const whisperCallback = async (err, text) => {
+  if (err) return changeColor("deepskyblue");
+  const params = getParams();
+  await logic(text);
+  if (params.alwaysOn) {
+    await toggleRecording(whisperCallback);
+    await toggleRecording(whisperCallback);
+  }
 };
 
 export const processCallback = async (wakeword) => {
@@ -31,9 +45,7 @@ export const processCallback = async (wakeword) => {
   changeColor("gold");
   const params = getParams();
   if (params.whisper) {
-    await toggleRecording(async (text) => {
-      await logic(text);
-    });
+    await toggleRecording(whisperCallback);
   } else
     await startVoiceRecognition("/scripts/" + params.model, async (data) => {
       await logic(data.text);

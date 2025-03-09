@@ -34,7 +34,7 @@ export const stopProcessing = () => {
 const listenForTextInput = () => {
   let textBuffer = "";
   document.addEventListener("keydown", async (event) => {
-    console.log(event);
+    console.log("keydown", event);
     hideLLMText();
     if (
       event.key.length == 1 &&
@@ -103,10 +103,10 @@ const enableVirtualKeyboard = () => {
 
       // Ensures key events are dispatched correctly for "Enter" and other keys.
       input.addEventListener("input", (event) => {
-        console.log(event);
+        console.log("input", event);
         let data = event.data || "";
-        const key =
-          event.inputType == "deleteContentBackward" ? "Backspace" : data;
+        const key = data;
+        // event.inputType == "deleteContentBackward" ? "Backspace" : data;
         if (key) {
           document.dispatchEvent(new KeyboardEvent("keydown", { key }));
         }

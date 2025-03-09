@@ -173,9 +173,20 @@ export const logic = async (recognizedText) => {
     let data;
     if (prompt.includes("image")) {
       console.log(data);
-      data = await generateImage(prompt, true, false);
+      data = await generateImage(
+        prompt,
+        false,
+        process.env.MUTE ? false : true
+      );
       sendToAll(data.buffer, true);
-    } else if (prompt.includes("video")) await generateVideo(prompt, 24, 2);
+    } else if (prompt.includes("video"))
+      await generateVideo(
+        prompt,
+        24,
+        2,
+        false,
+        process.env.MUTE ? false : true
+      );
   } else if (
     recognizedText.includes("repete") ||
     recognizedText.includes("repeat")

@@ -393,7 +393,7 @@ export async function processWavBuffer(arrayBuffer) {
     for (let track of microphoneStream.getAudioTracks()) {
       track.enabled = true;
     }
-    changeColor("deepskyblue");
+    changeColor(params.alwaysOn ? "gold" : "deepskyblue");
   };
   // Start playing the audio
   source.start();

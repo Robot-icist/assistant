@@ -1,13 +1,15 @@
+import fnmatch
 import io
 import argparse
 import asyncio
+import re
 import numpy as np
 import ffmpeg
 from time import time, sleep
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, status
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from whisper_streaming_custom.whisper_online import backend_factory, online_factory, add_shared_args
@@ -21,6 +23,12 @@ import torch
 import gc
 import sys
 import os
+import ipaddress
+from typing import List
+
+from starlette.middleware import Middleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.responses import Response
 
 torch.cuda.set_per_process_memory_fraction(0.6, device=0)
 
@@ -375,12 +383,33 @@ async def results_formatter(shared_state, websocket):
 
 ##### ENDPOINTS #####
 
+# Allowed IPs (supports wildcards)
+ALLOWED_IPS = {"127.0.0.1", "::1", "92.184.*.*", "109.210.78.69", "128.79.182.244", "176.149.91.118", "184.163.47.39"}
+
+def is_ip_allowed(ip: str) -> bool:
+    """Check if the IP matches any allowed patterns."""
+    return any(fnmatch.fnmatch(ip, allowed_ip) for allowed_ip in ALLOWED_IPS)
+
+@app.middleware("http")
+async def filter_http_requests(request: Request, call_next):
+    """Middleware to filter HTTP requests based on IP."""
+    client_ip = request.client.host.rsplit(":", 1)[-1]
+    if not is_ip_allowed(client_ip):
+        raise HTTPException(status_code=403, detail="Forbidden: IP not allowed")
+    return await call_next(request)
+
 @app.get("/")
 async def get():
     return HTMLResponse(html)
 
 @app.websocket("/asr")
 async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket connection with IP filtering."""
+    client_ip = websocket.client.host.rsplit(":", 1)[-1]
+    print(client_ip)
+    if not is_ip_allowed(client_ip):
+        await websocket.close(code=1008)  # Close WebSocket with "Policy Violation"
+        return
     await websocket.accept()
     logger.info("WebSocket connection opened.")
 
@@ -489,10 +518,6 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             sys.stdout.flush()
             ffmpeg_process.stdout.flush()
-            # command = input().strip()
-            # if command.lower() == "exit":
-            #     print("Exiting FasterWhisperWeb service.")
-            #     break
             # Receive incoming WebM audio chunks from the client
             message = await websocket.receive_bytes()
             try:
