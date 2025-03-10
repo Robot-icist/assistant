@@ -31,7 +31,7 @@ const logic = async (text) => {
 };
 
 const whisperCallback = async (err, text) => {
-  if (err) return changeColor("deepskyblue");
+  if (err) return;
   const params = getParams();
   await logic(text);
   if (params.alwaysOn) {

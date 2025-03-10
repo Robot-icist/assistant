@@ -123,7 +123,7 @@ function setupWebSocket() {
     } catch (error) {
       console.error("Invalid WebSocket URL:", error);
       isConnecting = false; // Reset the flag on error
-      reject(error);
+      // reject(error);
       return;
     }
 
@@ -140,10 +140,8 @@ function setupWebSocket() {
       console.log(message);
       if (userClosing) return (userClosing = false);
       userClosing = false;
-      delete websocket;
-      websocket = null; // Ensure websocket is nullified on close
-      isConnecting = false; // Reset the flag
-      stopRecording(); // Stop recording on close
+      isConnecting = false;
+      stopRecording();
       // Reconnect logic:  Wait and then attempt reconnection
       setTimeout(async () => {
         console.log("Attempting to reconnect...");
@@ -153,11 +151,9 @@ function setupWebSocket() {
 
     websocket.onerror = async (error) => {
       console.error("Error connecting to WebSocket:", error);
-      isConnecting = false; // Reset the flag on error
+      isConnecting = false;
       stopRecording(); // Stop recording on close
-      reject(new Error("Error connecting to WebSocket"));
-      delete websocket;
-      websocket = null;
+      // reject(new Error("Error connecting to WebSocket"));
       setTimeout(async () => {
         console.log("Attempting to reconnect...");
         await toggleRecording(callback);
@@ -215,12 +211,13 @@ function setupWebSocket() {
           displayHTML += `${speakerLabel}<br/><div class='textcontent'>${textContent}</div><br>`; // Added <br> for spacing
           plainText += textContent + " "; // Accumulate plain text
 
-          timeout = setTimeout(async () => {
-            if (callback) callback(null, textContent);
-          }, 2500);
+          if (buffer_transcription == "")
+            timeout = setTimeout(async () => {
+              if (callback) callback(null, textContent);
+            }, 2500);
         }
       });
-
+      hideLLMText();
       // Call displayText with HTML content
       displayText(
         displayHTML,

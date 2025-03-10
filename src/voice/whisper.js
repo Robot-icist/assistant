@@ -37,7 +37,7 @@ class WhisperProcess {
     this.events = new EventEmitter();
     this.controller = controller;
     this.restartDelay = 0; // Delay before restarting the process (e.g., 1 second)
-    this.checkInterval = 2500; // Interval to check for responsiveness (e.g., 10 seconds)
+    this.checkInterval = 3000; // Interval to check for responsiveness (e.g., 10 seconds)
     this.lastActivity = Date.now(); // Keep track of the time of the last activity
 
     this.activityCheckIntervalId = null; // Store the interval id to clear it later
@@ -76,9 +76,7 @@ class WhisperProcess {
       if (output.includes("connection open")) {
         this._startActivityCheck();
       }
-      if (output.includes("connection closed")) {
-        this._stopActivityCheck();
-      }
+
       if (output.includes("Application startup complete")) {
         this._stopActivityCheck();
       }
@@ -89,6 +87,10 @@ class WhisperProcess {
 
       // Reset activity timer on error too.  Errors can be a form of activity
       this.lastActivity = Date.now();
+
+      // if (data.includes("connection closed")) {
+      //   this._stopActivityCheck();
+      // }
     });
 
     this.process.on("close", (code) => {

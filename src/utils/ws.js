@@ -14,6 +14,7 @@ import {
   setLLM,
 } from "../llm/ollama.js";
 import { setHotword } from "../voice/hotword.js";
+import { isIPAllowed } from "./AllowedIPs.js";
 
 export let wss = null;
 
@@ -26,18 +27,9 @@ export const startWs = () => {
   wss.on("connection", function connection(ws, req) {
     // console.log(ws, req);
     const ip = req.headers["x-forwarded-for"] || req.connection.remoteAddress;
-    console.log("ws connected: ", ip);
+    console.log("ws connected: ", ip, isIPAllowed(ip));
 
-    if (
-      !ip.includes("92.184") && //Android
-      !ip.includes("109.210.78.69") && //home
-      !ip.includes("128.79.182.244") && //axel home
-      !ip.includes("176.149.91.118") && //axel phone
-      !ip.includes("184.163.47.39") && //mike home
-      !ip.includes("::1") &&
-      ip != ""
-    )
-      return ws.close();
+    if (!isIPAllowed(ip)) return ws.close();
 
     ws.on("error", console.error);
 
