@@ -26,6 +26,10 @@ from src.utils.init_path import init_path
 
 import queue
 
+import torch
+import torchvision
+print(torch.__version__, torchvision.__version__)
+
 play_lock = threading.Lock()
 video_queue = queue.Queue()
 

@@ -37,7 +37,7 @@ class WhisperProcess {
     this.events = new EventEmitter();
     this.controller = controller;
     this.restartDelay = 0; // Delay before restarting the process (e.g., 1 second)
-    this.checkInterval = 3000; // Interval to check for responsiveness (e.g., 10 seconds)
+    this.checkInterval = 5000; // Interval to check for responsiveness (e.g., 5 seconds)
     this.lastActivity = Date.now(); // Keep track of the time of the last activity
 
     this.activityCheckIntervalId = null; // Store the interval id to clear it later

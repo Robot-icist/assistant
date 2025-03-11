@@ -30,6 +30,8 @@ from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
 
+import threading
+
 torch.cuda.set_per_process_memory_fraction(0.6, device=0)
 
 def format_time(seconds):
@@ -40,6 +42,15 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logging.getLogger().setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+# Define custom handler to auto flush
+class AutoFlushHandler(logging.StreamHandler):
+    def emit(self, record):
+        # super().emit(record)
+        self.flush()  # Flush after each log entry
+
+# Add the custom handler
+logger.addHandler(AutoFlushHandler())
 
 ##### LOAD ARGS #####
 
@@ -193,7 +204,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-print("WHISPER Service Ready")
+logger.info("WHISPER Service Ready")
 
 # Load demo HTML for the root endpoint
 with open("web/live_transcription.html", "r", encoding="utf-8") as f:
@@ -213,9 +224,54 @@ async def start_ffmpeg_decoder():
             ac=CHANNELS,
             ar=str(SAMPLE_RATE),
         )
-        .run_async(pipe_stdin=True, pipe_stdout=True, pipe_stderr=True)
+        .run_async(pipe_stdin=True, pipe_stdout=True, pipe_stderr=True, quiet=True)
     )
     return process
+
+def poll(ffmpeg_process): 
+    try:
+        if ffmpeg_process:
+            while True:
+                ret_code = ffmpeg_process.poll()
+                logger.info("Polling FFmpeg process...")
+                if ret_code is not None:
+                    break
+                # Handle the output stream (stdout)
+                output = ffmpeg_process.stdout.read(4096)
+                if output:
+                    logger.info(output)  # Print or process the output as needed
+
+                # Handle the error stream (stderr)
+                error = ffmpeg_process.stderr.read(4096)
+                if error:
+                    logger.info(error.decode())
+
+
+    except BrokenPipeError:
+        logger.info("Broken pipe encountered! The ffmpeg process might have terminated unexpectedly.")
+        # Here, you could restart the process or handle cleanup
+        if ffmpeg_process:
+            ffmpeg_process.terminate()
+            ffmpeg_process.wait()
+
+    except KeyboardInterrupt:
+        logger.info("Process interrupted by user (Ctrl + C). Terminating gracefully...")
+        if ffmpeg_process:
+            ffmpeg_process.terminate()
+            ffmpeg_process.wait()
+
+    except Exception as e:
+        logger.info(f"An unexpected error occurred: {e}")
+        if ffmpeg_process:
+            ffmpeg_process.terminate()
+            ffmpeg_process.wait()
+
+    finally:
+        # Cleanup and terminate the process if it's still running
+        if ffmpeg_process and ffmpeg_process.poll() is None:
+            logger.info("Force terminating ffmpeg process.")
+            ffmpeg_process.terminate()
+            ffmpeg_process.wait()
 
 async def transcription_processor(shared_state, pcm_queue, online):
     full_transcription = ""
@@ -426,12 +482,16 @@ async def websocket_endpoint(websocket: WebSocket):
         nonlocal ffmpeg_process, online, pcm_buffer
         if ffmpeg_process:
             try:
+                # ffmpeg_process.stdin.close()
                 ffmpeg_process.kill()
                 loop = asyncio.get_event_loop()
-                await asyncio.wait_for(loop.run_in_executor(None, ffmpeg_process.wait), timeout=2)
-            except Exception as e:
+                await asyncio.wait_for(loop.run_in_executor(None, ffmpeg_process.wait), timeout=1)
+            except (Exception, TimeoutError) as e:
                 logger.warning(f"Error killing FFmpeg process: {e}")
         ffmpeg_process = await start_ffmpeg_decoder()
+        ffmpeg_poll = threading.Thread(target=poll, args=(ffmpeg_process,))
+        ffmpeg_poll.start()
+
         pcm_buffer = bytearray()
         
         if args.transcription:
@@ -451,6 +511,8 @@ async def websocket_endpoint(websocket: WebSocket):
             diarization_processor(shared_state, diarization_queue, diarization)))
     formatter_task = asyncio.create_task(results_formatter(shared_state, websocket))
     tasks.append(formatter_task)
+    # tasks.append(asyncio.create_task(poll(ffmpeg_process)))
+
 
     async def ffmpeg_stdout_reader():
         nonlocal ffmpeg_process, pcm_buffer
@@ -469,11 +531,11 @@ async def websocket_endpoint(websocket: WebSocket):
                         loop.run_in_executor(
                             None, ffmpeg_process.stdout.read, ffmpeg_buffer_from_duration
                         ),
-                        timeout=15.0
+                        timeout=1.0
                     )
                 except asyncio.TimeoutError:
                     logger.warning("FFmpeg read timeout. Restarting...")
-                    await restart_ffmpeg()
+                    #await restart_ffmpeg()
                     beg = time()
                     continue  # Skip processing and read from new process
 
@@ -486,7 +548,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 if len(pcm_buffer) >= BYTES_PER_SEC:
                     if len(pcm_buffer) > MAX_BYTES_PER_SEC:
                         logger.warning(
-                            f"""Audio buffer is too large: {len(pcm_buffer) / BYTES_PER_SEC:.2f} seconds.
+                            #f"""Audio buffer is too large: {len(pcm_buffer) / BYTES_PER_SEC:.2f} seconds.
+                            f"""Audio buffer is too large.
                             The model probably struggles to keep up. Consider using a smaller model.
                             """)
                     # Convert int16 -> float32
@@ -520,13 +583,18 @@ async def websocket_endpoint(websocket: WebSocket):
             ffmpeg_process.stdout.flush()
             # Receive incoming WebM audio chunks from the client
             message = await websocket.receive_bytes()
+            loop = asyncio.get_event_loop()
             try:
-                ffmpeg_process.stdin.write(message)
+                await asyncio.wait_for(loop.run_in_executor(None, ffmpeg_process.stdin.write, message), timeout=1)
+                # await loop.run_in_executor(None, ffmpeg_process.stdin.write, message)
+                # ffmpeg_process.stdin.write(message)
                 ffmpeg_process.stdin.flush()
-            except (BrokenPipeError, AttributeError) as e:
-                logger.warning(f"Error writing to FFmpeg: {e}. Restarting...", flush=True)
+            except (BrokenPipeError, AttributeError, TimeoutError) as e:
+                logger.warning(f"Error writing to FFmpeg: {e}. Restarting...")
                 await restart_ffmpeg()
-                ffmpeg_process.stdin.write(message)
+                await asyncio.wait_for(loop.run_in_executor(None, ffmpeg_process.stdin.write, message), timeout=1)
+                # await loop.run_in_executor(None, ffmpeg_process.stdin.write, message)
+                # ffmpeg_process.stdin.write(message)
                 ffmpeg_process.stdin.flush()
     except WebSocketDisconnect:
         logger.warning("WebSocket disconnected. Waiting for a new connection...")
@@ -547,8 +615,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 ffmpeg_process.stdin.close()
                 ffmpeg_process.kill()  # Ensure it's forcefully stopped
                 loop = asyncio.get_event_loop()
-                await asyncio.wait_for(loop.run_in_executor(None, ffmpeg_process.wait), timeout=2)
-            except Exception as e:
+                await asyncio.wait_for(loop.run_in_executor(None, ffmpeg_process.wait), timeout=1)
+            except (Exception, TimeoutError) as e:
                 logger.warning(f"Error stopping FFmpeg: {e}")
         
         if args.diarization and diarization:
