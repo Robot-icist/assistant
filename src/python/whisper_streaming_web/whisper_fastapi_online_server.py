@@ -531,7 +531,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         loop.run_in_executor(
                             None, ffmpeg_process.stdout.read, ffmpeg_buffer_from_duration
                         ),
-                        timeout=1.0
+                        timeout=2.0
                     )
                 except asyncio.TimeoutError:
                     logger.warning("FFmpeg read timeout. Restarting...")

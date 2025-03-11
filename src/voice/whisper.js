@@ -39,7 +39,8 @@ class WhisperProcess {
     this.restartDelay = 0; // Delay before restarting the process (e.g., 1 second)
     this.checkInterval = 5000; // Interval to check for responsiveness (e.g., 5 seconds)
     this.lastActivity = Date.now(); // Keep track of the time of the last activity
-
+    this.timeout = null;
+    this.timeoutCount = 0;
     this.activityCheckIntervalId = null; // Store the interval id to clear it later
   }
 
@@ -77,6 +78,16 @@ class WhisperProcess {
         this._startActivityCheck();
       }
 
+      if (output.includes("FFmpeg read timeout")) {
+        clearTimeout(this.timeout);
+        this.timeoutCount++;
+        if (this.timeoutCount > 3) {
+          this._cleanupAndRestart();
+        }
+        this.timeout = setTimeout(() => {
+          this.timeoutCount = 0;
+        }, 5000);
+      }
       if (output.includes("Application startup complete")) {
         this._stopActivityCheck();
       }
