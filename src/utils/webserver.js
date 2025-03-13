@@ -1,7 +1,7 @@
 import express from "express";
 import { resolve } from "path";
 import { fileURLToPath } from "url";
-import { isIPAllowed } from "./AllowedIPs.js";
+import { isIPAllowed } from "./IP.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const app = express();

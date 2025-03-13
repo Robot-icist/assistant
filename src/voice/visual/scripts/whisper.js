@@ -234,7 +234,13 @@ function setupWebSocket() {
 async function startRecording() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1,
+        // sampleRate: 48000,
+      },
     });
     recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
     recorder.ondataavailable = (e) => {

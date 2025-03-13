@@ -75,6 +75,7 @@ export async function createLabeledDescriptors(folderPath) {
   // Process images in parallel for each label
   await Promise.all(
     labels.map(async (label) => {
+      if (!label.includes("gilles")) return;
       const imagesPath = path.join(folderPath, label);
       const imageFiles = fs.readdirSync(imagesPath);
       const descriptors = [];

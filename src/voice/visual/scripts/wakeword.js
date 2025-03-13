@@ -1,8 +1,11 @@
 import { changeColor, getParams } from "./icosahedron.js";
 import { sendParams, stopProcessing } from "./main.js";
 
-const SENSITIVITIES = new Float32Array([0.75]);
-
+// const SENSITIVITIES = new Float32Array([0.75]);
+const SENSITIVITIES = new Float32Array([
+  0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75,
+  0.75,
+]);
 const logic = async (text) => {
   try {
     if (text?.trim() === "") return;
@@ -65,6 +68,8 @@ export const startWakewordRecognition = () => {
     PorcupineManager.start(
       { [getParams().wakeword]: KEYWORDS_ID[getParams().wakeword] },
       new Float32Array([SENSITIVITIES[0]]),
+      // KEYWORDS_ID,
+      // SENSITIVITIES,
       processCallback,
       audioManagerErrorCallback,
       readyCallback,

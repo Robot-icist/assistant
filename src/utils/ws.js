@@ -1,5 +1,5 @@
 import WebSocket, { WebSocketServer } from "ws";
-import { logic, setProcessing } from "../../index.js";
+import { getProcessing, logic, setProcessing } from "../../index.js";
 import {
   getLang,
   setLang,
@@ -14,9 +14,15 @@ import {
   setLLM,
 } from "../llm/ollama.js";
 import { setHotword } from "../voice/hotword.js";
-import { isIPAllowed } from "./AllowedIPs.js";
+import { isIPAllowed } from "./IP.js";
 
 export let wss = null;
+
+let currentRequestWs = null;
+
+export const getCurrentRequestWs = () => currentRequestWs;
+
+export const setCurrentRequestWs = (ws) => (currentRequestWs = ws);
 
 export const startWs = () => {
   wss = new WebSocketServer({
@@ -48,30 +54,30 @@ export const startWs = () => {
           if (json.llm != null) setLLM(json.llm);
           if (json.keepInMemory != null) setKeepInMemory(json.keepInMemory);
           if (json.text != null && json.text != "") {
-            await logic(json.text);
+            await logic(json.text, null, ws);
           }
+        }
+        if (isBinary) {
+          await logic(
+            getLang() == "fr"
+              ? "Decris ce que tu vois dans cette image rapidement et réponds en Français"
+              : "Describe what you see in this image shortly and answer in English",
+            data,
+            ws
+          );
         }
       } catch (error) {
         console.log("ws error", error);
-      }
-      if (isBinary) {
-        sendToAll("loading:true");
-        setProcessing(true);
-        await ollamaVision(
-          getLang() == "fr"
-            ? "Decris cette image et réponds en Français"
-            : "Describe this image and answer in English",
-          speak,
-          data
-        );
-        setProcessing(false);
-        sendToAll("loading:false");
       }
     });
   });
 };
 
 export const sendToAll = (data, binary = false) => {
+  if (getCurrentRequestWs() != null) {
+    getCurrentRequestWs().send(data, { binary });
+    return;
+  }
   wss.clients.forEach(function each(client) {
     if (client.readyState === WebSocket.OPEN) {
       client.send(data, { binary });

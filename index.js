@@ -39,7 +39,12 @@ import {
   getIsAudioProcessing,
   playAudio,
 } from "./src/audio/main.js";
-import { sendToAll, startWs, wss } from "./src/utils/ws.js";
+import {
+  sendToAll,
+  setCurrentRequestWs,
+  startWs,
+  wss,
+} from "./src/utils/ws.js";
 import { sleep } from "@nut-tree-fork/nut-js";
 import preventSleep from "node-prevent-sleep";
 import {
@@ -129,13 +134,14 @@ export const Stop = () => {
   sendToAll("stop:true");
 };
 
-export const logic = async (recognizedText) => {
+export const logic = async (recognizedText, bytes = null, ws = null) => {
   if (recognizedText === "") return;
   if (recognizedText.includes("stop")) {
     return Stop();
     kill();
   }
   while (processing) await sleep(100);
+  setCurrentRequestWs(ws);
   setProcessing(true);
   sendToAll("loading:true");
   recognizedText = removeDiacritics(recognizedText).toLowerCase().trim();
@@ -257,7 +263,7 @@ export const logic = async (recognizedText) => {
       device.dev_type == "scene" ? 1 : onOrOff ? 1 : 0
     );
   } else if (recognizedText.includes("vois") || recognizedText.includes("see"))
-    await ollamaVision(recognizedText, speak, null);
+    await ollamaVision(recognizedText, speak, bytes);
   else if (recognizedText.includes("think") || recognizedText.includes("pense"))
     await ollamaChat(recognizedText, speak, "deepseek-r1:1.5b");
   else await ollamaChat(recognizedText, speak);
