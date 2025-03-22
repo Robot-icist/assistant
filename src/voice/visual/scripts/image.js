@@ -114,3 +114,30 @@ async function takePicture(facingMode = "user") {
     console.error(err.message);
   }
 }
+
+let recognitionInterval = null;
+
+async function startRecognition(facingMode = "user") {
+  recognitionInterval = setInterval(async () => {
+    try {
+      const imageBuffer = await captureImage(facingMode); // Capture image (from previous function)
+      console.log("Original Image Size:", imageBuffer.size / 1024, "KB");
+
+      const resizedBuffer = await resizeImageBuffer(
+        imageBuffer,
+        600,
+        600,
+        0.25
+      ); // Resize & compress
+      console.log("Resized Image Size:", resizedBuffer.size / 1024, "KB");
+
+      WS1.send(resizedBuffer);
+    } catch (err) {
+      console.error(err.message);
+    }
+  }, 1000);
+}
+
+async function stopRecognition() {
+  clearInterval(recognitionInterval);
+}

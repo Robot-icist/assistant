@@ -75,8 +75,8 @@ class SadTalkerProcess {
     const command = `--driven_audio ${params.drivenAudio} --source_image ${
       params.sourceImage
     } ${params.still ? "--still" : ""} ${
-      params.enhance ? "--enhancer gfpgan" : ""
-    } --play ${params.play}\n`;
+      params.enhance ? "--enhancer gfpgan" : "" // RestoreFormer
+    } --play ${params.play} --batch_size ${params.batchSize ?? 16}\n`;
     console.log(`\nSending command to Python SadTalker: ${command}`);
     this.process.stdin.write(command); // Send the command to the Python process
   }

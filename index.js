@@ -316,6 +316,7 @@ try {
     // await registerHotword();
     // await registerVoiceClone();
     // if (!process.env.TTS)
+    await recognition.setup();
     // await recognition.loop();
     // automation();
     const question = () =>

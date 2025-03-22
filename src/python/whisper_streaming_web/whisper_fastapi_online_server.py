@@ -31,6 +31,10 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.responses import Response
 
 import threading
+from dotenv import load_dotenv
+
+# Load the .env file
+load_dotenv()
 
 torch.cuda.set_per_process_memory_fraction(0.6, device=0)
 
@@ -440,11 +444,13 @@ async def results_formatter(shared_state, websocket):
 ##### ENDPOINTS #####
 
 # Allowed IPs (supports wildcards)
-ALLOWED_IPS = {"127.0.0.1", "::1", "92.184.*.*", "109.210.78.69", "128.79.182.244", "176.149.91.118", "184.163.47.39"}
+# Access environment variables using os.environ or the dotenv dictionary
+ALLOWED_IPS = os.environ.get('ALLOWED_IPS')
+print(ALLOWED_IPS)  
 
 def is_ip_allowed(ip: str) -> bool:
     """Check if the IP matches any allowed patterns."""
-    return any(fnmatch.fnmatch(ip, allowed_ip) for allowed_ip in ALLOWED_IPS)
+    return any(fnmatch.fnmatch(ip, allowed_ip) for allowed_ip in ALLOWED_IPS.split(','))
 
 @app.middleware("http")
 async def filter_http_requests(request: Request, call_next):

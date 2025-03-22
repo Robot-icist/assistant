@@ -1,12 +1,8 @@
-export const AllowedIPs = [
-  "127.0.0.1",
-  "::1",
-  "92.184.*.*",
-  "109.210.78.69",
-  "128.79.182.244",
-  "176.149.91.118",
-  "184.163.47.39",
-];
+import "dotenv/config";
+
+let ips = process.env.ALLOWED_IPS;
+console.log(process.env);
+export const AllowedIPs = ips.split(",");
 
 export const normalizeIP = (ip) =>
   ip.startsWith("::ffff:") ? ip.substring(7) : ip; // Convert IPv4-mapped IPv6 to IPv4

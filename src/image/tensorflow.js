@@ -7,8 +7,8 @@ to D:\TFJS\node_modules\@tensorflow\tfjs-node\lib\napi-v6\
  */
 // // import nodejs bindings to native tensorflow,
 // // not required, but will speed up things drastically (python required)
-import tfnode from "@tensorflow/tfjs-node";
-// import tfnode from "@tensorflow/tfjs-node-gpu";
+// import tfnode from "@tensorflow/tfjs-node";
+import tfnode from "@tensorflow/tfjs-node-gpu";
 
 // if (process.env.TTS) tfnode.setBackend("cpu");
 
@@ -213,7 +213,7 @@ export async function analyzeAndRecognize(imagePathOrBuffer, faceMatcher) {
       lastSpokenMatch = currentMatch; // Update the last spoken match
       lastSpeakTime = currentTime; // Update the last speak time
       // speak(`Hello ${currentMatch} ! I can see you are ${closestExpression}`); // Speak the name
-      speak(`Hello ${currentMatch} !`); // Speak the name
+      await speak(`Hello ${currentMatch} !`); // Speak the name
     }
 
     const textFields = [

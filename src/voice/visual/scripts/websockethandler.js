@@ -191,7 +191,7 @@ class WebSocketHandler {
       source.type = type;
       mediaElement.appendChild(source);
       document.body.appendChild(mediaElement);
-
+      if (mediaElement.id == "image") this.playNextMedia();
       mediaElement.onended = () => {
         WS.events.emit("played");
         //document.body.removeChild(mediaElement);
@@ -220,5 +220,7 @@ class WebSocketHandler {
 }
 const pageKite = true;
 const subdomain = "personala";
-if (pageKite) WS = new WebSocketHandler(`wss://ws-${subdomain}.pagekite.me`);
-else WS = new WebSocketHandler(`wss://ws${subdomain}.loca.lt`);
+if (pageKite) {
+  WS = new WebSocketHandler(`wss://ws-${subdomain}.pagekite.me`);
+  WS1 = new WebSocketHandler(`wss://ws-${subdomain}.pagekite.me/recognition`);
+} else WS = new WebSocketHandler(`wss://ws${subdomain}.loca.lt`);

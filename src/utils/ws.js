@@ -15,6 +15,9 @@ import {
 } from "../llm/ollama.js";
 import { setHotword } from "../voice/hotword.js";
 import { isIPAllowed } from "./IP.js";
+import { faceMatcher } from "../image/recognition.js";
+import { analyzeAndRecognize } from "../image/tensorflow.js";
+import { detect_objects_on_image } from "../image/onnx.js";
 
 export let wss = null;
 
@@ -33,7 +36,7 @@ export const startWs = () => {
   wss.on("connection", function connection(ws, req) {
     // console.log(ws, req);
     const ip = req.headers["x-forwarded-for"] || req.connection.remoteAddress;
-    console.log("ws connected: ", ip, isIPAllowed(ip));
+    console.log("ws connected: ", ip, isIPAllowed(ip), req.url);
 
     if (!isIPAllowed(ip)) return ws.close();
 
@@ -42,6 +45,7 @@ export const startWs = () => {
     ws.on("message", async function message(data, isBinary) {
       console.log("ws received: ", data.toString(), "isBinary: ", isBinary);
       console.log(typeof data);
+      console.log("url:", req.url);
       try {
         if (!isBinary) {
           const json = JSON.parse(data);
@@ -58,13 +62,18 @@ export const startWs = () => {
           }
         }
         if (isBinary) {
-          await logic(
-            getLang() == "fr"
-              ? "Decris ce que tu vois dans cette image rapidement et réponds en Français"
-              : "Describe what you see in this image shortly and answer in English",
-            data,
-            ws
-          );
+          if (req.url == "/recognition") {
+            let faceBuffer = await analyzeAndRecognize(data, faceMatcher);
+            let objectsBuffer = await detect_objects_on_image(faceBuffer);
+            sendToAll(objectsBuffer, true);
+          } else
+            await logic(
+              getLang() == "fr"
+                ? "Decris ce que tu vois dans cette image rapidement et réponds en Français"
+                : "Describe what you see in this image shortly and answer in English",
+              data,
+              ws
+            );
         }
       } catch (error) {
         console.log("ws error", error);
@@ -73,8 +82,8 @@ export const startWs = () => {
   });
 };
 
-export const sendToAll = (data, binary = false) => {
-  if (getCurrentRequestWs() != null) {
+export const sendToAll = (data, binary = false, force = false) => {
+  if (getCurrentRequestWs() != null && !force) {
     getCurrentRequestWs().send(data, { binary });
     return;
   }

@@ -11,15 +11,20 @@ import { initializeCV, detectObjects } from "./opencv.js";
 import camera, { videoCapture } from "./camera.js";
 import puppeteer from "puppeteer";
 
-// Main function
-export async function loop() {
-  await loadModels();
+export let faceMatcher = null;
 
+export async function setup() {
+  await loadModels();
   // await initializeCV();
   // await initializeOnnx(process.env.TTS ? "cpu" : "dml");
   await initializeOnnx();
 
-  const faceMatcher = await createFaceMatcher();
+  faceMatcher = await createFaceMatcher();
+}
+
+// Main function
+export async function loop() {
+  await setup();
 
   const browser = await puppeteer.launch({
     headless: false,

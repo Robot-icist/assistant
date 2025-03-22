@@ -25,6 +25,7 @@ export const stopPlaying = () => {
 
 export const stopProcessing = () => {
   stopPlaying();
+  stopRecognition();
   WS.mediaQueue = [];
   document.getElementById("loader")?.remove();
   document.getElementById("stop")?.remove();
@@ -71,6 +72,16 @@ const listenForTextInput = () => {
           textBuffer.toLowerCase().includes("front");
 
         await takePicture(front ? "user" : "environment");
+      }
+      if (
+        textBuffer.toLowerCase().includes("recognition") ||
+        textBuffer.toLowerCase().includes("reconnaissance")
+      ) {
+        sendParams();
+        let front =
+          textBuffer.toLowerCase().includes("devant") ||
+          textBuffer.toLowerCase().includes("front");
+        await startRecognition(front ? "user" : "environment");
       } else if (textBuffer.toLowerCase().includes("stop")) {
         stopProcessing();
       } else {
