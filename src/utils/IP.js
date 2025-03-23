@@ -1,7 +1,6 @@
 import "dotenv/config";
 
 let ips = process.env.ALLOWED_IPS;
-console.log(process.env);
 export const AllowedIPs = ips.split(",");
 
 export const normalizeIP = (ip) =>

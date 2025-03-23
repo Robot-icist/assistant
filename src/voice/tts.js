@@ -75,7 +75,7 @@ class TTSProcess {
       return;
     }
     // const command = `text=${params.text}|speaker_wav=${params.speakerWav}|language=${params.language}|output_file=${params.outputFile}|play_audio=${params.playAudio}|visualize=${params.visualize}|color=${params.color}\n`;
-    const command = `text=${params.text}|speaker_wav=${params.speakerWav}|language=${params.language}|output_file=${params.outputFile}|play_audio=${params.playAudio}\n`;
+    const command = `text="${params.text}"|speaker_wav=${params.speakerWav}|language=${params.language}|output_file=${params.outputFile}|play_audio=${params.playAudio}\n`;
     console.log(`\nSending command to Python TTS: ${command}`);
     this.process.stdin.write(command);
   }

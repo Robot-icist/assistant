@@ -15,7 +15,7 @@ import {
 } from "../llm/ollama.js";
 import { setHotword } from "../voice/hotword.js";
 import { isIPAllowed } from "./IP.js";
-import { faceMatcher } from "../image/recognition.js";
+import { getFaceMatcher } from "../image/recognition.js";
 import { analyzeAndRecognize } from "../image/tensorflow.js";
 import { detect_objects_on_image } from "../image/onnx.js";
 
@@ -63,7 +63,7 @@ export const startWs = () => {
         }
         if (isBinary) {
           if (req.url == "/recognition") {
-            let faceBuffer = await analyzeAndRecognize(data, faceMatcher);
+            let faceBuffer = await analyzeAndRecognize(data, getFaceMatcher());
             let objectsBuffer = await detect_objects_on_image(faceBuffer);
             sendToAll(objectsBuffer, true);
           } else

@@ -11,7 +11,9 @@ import { initializeCV, detectObjects } from "./opencv.js";
 import camera, { videoCapture } from "./camera.js";
 import puppeteer from "puppeteer";
 
-export let faceMatcher = null;
+let faceMatcher = null;
+
+export const getFaceMatcher = () => faceMatcher;
 
 export async function setup() {
   await loadModels();
