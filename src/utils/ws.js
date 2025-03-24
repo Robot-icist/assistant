@@ -70,10 +70,10 @@ export const startWs = () => {
               langName(detectedEld)
             );
             const mapped = mapLanguageToCode(
-              detectedEld || detectedtinyld,
+              detectedtinyld || detectedEld,
               getLang()
             );
-            console.log(detectedEld || detectedtinyld, mapped);
+            console.log(detectedtinyld || detectedEld, mapped);
             setLang(mapped);
             await logic(json.text, null, ws);
           }
