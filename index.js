@@ -6,7 +6,12 @@ import {
   recordAudioToFile,
 } from "./src/voice/recognition.js";
 import { ollamaChat, ollamaVision, stopStream } from "./src/llm/ollama.js";
-import { removeDiacritics, speak } from "./src/voice/speak.js";
+import {
+  getLang,
+  removeDiacritics,
+  setLang,
+  speak,
+} from "./src/voice/speak.js";
 import {
   automation,
   playActions,
@@ -55,6 +60,9 @@ import { tunnel } from "./src/utils/tunnel.js";
 import "dotenv/config";
 import smartlife from "./src/automation/smartlife.js";
 import { whisper } from "./src/voice/whisper.js";
+import { detect } from "tinyld";
+import { eld } from "eld";
+import { mapLanguageToCode } from "./src/utils/mapping.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -144,6 +152,14 @@ export const logic = async (recognizedText, bytes = null, ws = null) => {
   setCurrentRequestWs(ws);
   setProcessing(true);
   sendToAll("loading:true");
+  //
+  const detectedtinyld = detect(recognizedText);
+  const detectedEld = eld.detect(recognizedText).language;
+  const mapped = mapLanguageToCode(detectedEld || detectedtinyld, getLang());
+  console.log("Detected language: ", detectedEld, detectedtinyld);
+  console.log("Mapped language: ", detectedEld || detectedtinyld, mapped);
+  if (recognizedText.split(" ").length > 1) setLang(mapped);
+  //
   recognizedText = removeDiacritics(recognizedText).toLowerCase().trim();
   if (recognizedText.includes("execute")) {
     let command = recognizedText.replace("execute", "").trim();
