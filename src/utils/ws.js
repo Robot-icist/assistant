@@ -74,7 +74,7 @@ export const startWs = () => {
               getLang()
             );
             console.log(detectedtinyld || detectedEld, mapped);
-            setLang(mapped);
+            if (json.text.split(" ").length > 1) setLang(mapped);
             await logic(json.text, null, ws);
           }
         }

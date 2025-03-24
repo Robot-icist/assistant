@@ -134,7 +134,7 @@ async function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function startRecognition(facingMode = "user", interval = 500) {
+async function startRecognition(facingMode = "user", interval = 1000) {
   try {
     if (!isRunning) {
       console.log("Stopping the image capture process.");
