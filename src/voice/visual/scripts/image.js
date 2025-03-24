@@ -1,33 +1,46 @@
-async function captureImage(facingMode = "user") {
+let stream = null;
+
+async function captureImage(facingMode = "user", stop = true) {
   try {
-    // Request camera access
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode }, // 'user' (front) or 'environment' (back)
-    });
+    if (stream == null)
+      // Request camera access
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode }, // 'user' (front) or 'environment' (back)
+      });
 
     // Create a video element to get the stream
     const video = document.createElement("video");
     video.srcObject = stream;
-    await new Promise((resolve) => (video.onloadedmetadata = resolve));
-    video.play();
 
-    // Wait a short time to ensure the video feed is ready
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Wait for metadata to load before playing video
+    await new Promise((resolve) => {
+      video.onloadedmetadata = () => {
+        video.play();
+        resolve();
+      };
+    });
+
+    // Wait for the video to start rendering (remove unnecessary delay)
+    while (video.videoWidth === 0 || video.videoHeight === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 10)); // wait a bit for video dimensions
+    }
 
     // Create a canvas to capture the image
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
+
+    // Capture the image directly from the video frame
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert canvas to Blob (image buffer)
+    // Convert canvas to Blob (image buffer) asynchronously
     const imageBuffer = await new Promise((resolve) =>
-      canvas.toBlob(resolve, "image/png")
+      canvas.toBlob(resolve, "image/jpeg")
     );
 
-    // Stop camera stream
-    stream.getTracks().forEach((track) => track.stop());
+    // Stop camera stream immediately after capture
+    if (stop) stream.getTracks().forEach((track) => track.stop());
 
     return imageBuffer; // Returns image buffer (Blob)
   } catch (error) {
@@ -115,29 +128,49 @@ async function takePicture(facingMode = "user") {
   }
 }
 
-let recognitionInterval = null;
+let isRunning = true; // External flag to control whether to keep running or stop
 
-async function startRecognition(facingMode = "user") {
-  recognitionInterval = setInterval(async () => {
-    try {
-      const imageBuffer = await captureImage(facingMode); // Capture image (from previous function)
-      console.log("Original Image Size:", imageBuffer.size / 1024, "KB");
-
-      const resizedBuffer = await resizeImageBuffer(
-        imageBuffer,
-        600,
-        600,
-        0.25
-      ); // Resize & compress
-      console.log("Resized Image Size:", resizedBuffer.size / 1024, "KB");
-
-      WS1.send(resizedBuffer);
-    } catch (err) {
-      console.error(err.message);
-    }
-  }, 1000);
+async function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function stopRecognition() {
-  clearInterval(recognitionInterval);
+async function startRecognition(facingMode = "user", interval = 500) {
+  try {
+    if (!isRunning) {
+      console.log("Stopping the image capture process.");
+      return (isRunning = true); // Stop the function if the flag is false
+    }
+
+    // Capture an image
+    const imageBuffer = await captureImage(facingMode, false);
+    console.log("Original Image Size:", imageBuffer.size / 1024, "KB");
+
+    // Resize & compress the image
+    const resizedBuffer = await resizeImageBuffer(imageBuffer, 600, 600, 0.25);
+    console.log("Resized Image Size:", resizedBuffer.size / 1024, "KB");
+
+    // Send the image
+    WS1.send(resizedBuffer);
+
+    // Wait for the specified interval before capturing the next image
+    await delay(interval);
+
+    // Recursively call the function to take the next image
+    startRecognition(facingMode, interval);
+  } catch (err) {
+    console.error(err.message);
+  }
+}
+
+// Function to stop the image capture process
+function stopRecognition() {
+  isRunning = false;
+  stream.getTracks().forEach((track) => track.stop());
+  // Check if there are any active tracks left
+  const activeTracks = stream
+    .getTracks()
+    .filter((track) => track.readyState === "live");
+  console.log("Active tracks:", activeTracks);
+  stream = null;
+  console.log("Recognition stopped.");
 }
