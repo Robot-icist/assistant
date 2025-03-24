@@ -165,11 +165,11 @@ async function startRecognition(facingMode = "user", interval = 500) {
 // Function to stop the image capture process
 function stopRecognition() {
   isRunning = false;
-  stream.getTracks().forEach((track) => track.stop());
+  stream?.getTracks()?.forEach((track) => track.stop());
   // Check if there are any active tracks left
   const activeTracks = stream
-    .getTracks()
-    .filter((track) => track.readyState === "live");
+    ?.getTracks()
+    ?.filter((track) => track.readyState === "live");
   console.log("Active tracks:", activeTracks);
   stream = null;
   console.log("Recognition stopped.");

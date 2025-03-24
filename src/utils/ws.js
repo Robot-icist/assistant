@@ -18,6 +18,10 @@ import { isIPAllowed } from "./IP.js";
 import { getFaceMatcher } from "../image/recognition.js";
 import { analyzeAndRecognize } from "../image/tensorflow.js";
 import { detect_objects_on_image } from "../image/onnx.js";
+import LanguageDetect from "languagedetect";
+import { mapLanguageToCode } from "./mapping.js";
+
+const languageDetector = new LanguageDetect();
 
 export let wss = null;
 
@@ -58,6 +62,11 @@ export const startWs = () => {
           if (json.llm != null) setLLM(json.llm);
           if (json.keepInMemory != null) setKeepInMemory(json.keepInMemory);
           if (json.text != null && json.text != "") {
+            const detected = languageDetector.detect(json.text, 10);
+            console.log(detected);
+            const language = detected?.shift()?.shift();
+            console.log(language, mapLanguageToCode(language, getLang()));
+            setLang(mapLanguageToCode(language, getLang()));
             await logic(json.text, null, ws);
           }
         }

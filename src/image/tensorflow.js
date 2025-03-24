@@ -17,7 +17,6 @@ import tfnode from "@tensorflow/tfjs-node-gpu";
 
 // implements nodejs wrappers for HTMLCanvasElement, HTMLImageElement, ImageData
 import * as canvas from "canvas";
-// import faceapi from "face-api.js"; // old module
 import faceapi from "@vladmandic/face-api";
 
 import { speak } from "../voice/speak.js";

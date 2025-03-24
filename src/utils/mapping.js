@@ -1,6 +1,33 @@
 import { Key } from "@nut-tree-fork/nut-js";
 import cv from "@u4/opencv4nodejs";
 
+export function mapLanguageToCode(language, fallback = "en") {
+  const languages = [
+    { language: "English", code: "en" },
+    { language: "Spanish", code: "es" },
+    { language: "French", code: "fr" },
+    { language: "German", code: "de" },
+    { language: "Italian", code: "it" },
+    { language: "Portuguese", code: "pt" },
+    { language: "Polish", code: "pl" },
+    { language: "Turkish", code: "tr" },
+    { language: "Russian", code: "ru" },
+    { language: "Dutch", code: "nl" },
+    { language: "Czech", code: "cs" },
+    { language: "Arabic", code: "ar" },
+    { language: "Chinese", code: "zh-cn" },
+    { language: "Japanese", code: "ja" },
+    { language: "Hungarian", code: "hu" },
+    { language: "Korean", code: "ko" },
+    { language: "Hindi", code: "hi" },
+  ];
+
+  return (
+    languages.find((l) => l.language.toLowerCase() === language.toLowerCase())
+      ?.code || fallback
+  );
+}
+
 export function mapGlobalKeyToNutKey(globalKey) {
   const keyMapping = {
     // Alphanumeric keys

@@ -20,9 +20,9 @@ import {
   deleteTempDir,
 } from "../utils/helper.js";
 import { runPowerShellAsAdmin } from "../utils/processRunner.js";
+import { getProcessing } from "../../index.js";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getProcessing } from "../../index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name of the directory
 
