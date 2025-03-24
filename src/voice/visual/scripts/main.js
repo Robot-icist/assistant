@@ -5,7 +5,7 @@ export const sendParams = (text = null) => {
   WS.send(
     JSON.stringify({
       text: text,
-      lang: params.model.includes("fr") ? "fr" : "en",
+      lang: params.model.split("-")[3],
       speaker: params.speaker,
       hotword: params.wakeword.toLowerCase(),
       video: params.video,

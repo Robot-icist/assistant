@@ -256,6 +256,11 @@ assistantFolder
   .add(params, "model", [
     "vosk-model-small-fr-pguyot-0.3.tar.gz",
     "vosk-model-small-en-us-0.15.tar.gz",
+    "vosk-model-small-it-0.4.tar.gz",
+    "vosk-model-small-es-0.3.tar.gz",
+    "vosk-model-small-pt-0.3.tar.gz",
+    "vosk-model-small-tr-0.3.tar.gz",
+    "vosk-model-small-de-0.15.tar.gz",
   ])
   .onChange(async (value) => {
     await loadModel("/scripts/" + value);
