@@ -212,7 +212,7 @@ export async function analyzeAndRecognize(imagePathOrBuffer, faceMatcher) {
       lastSpokenMatch = currentMatch; // Update the last spoken match
       lastSpeakTime = currentTime; // Update the last speak time
       // speak(`Hello ${currentMatch} ! I can see you are ${closestExpression}`); // Speak the name
-      await speak(`Hello ${currentMatch} !`); // Speak the name
+      // await speak(`Hello ${currentMatch} !`); // Speak the name
     }
 
     const textFields = [

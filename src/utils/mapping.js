@@ -23,8 +23,11 @@ export function mapLanguageToCode(language, fallback = "en") {
   ];
 
   return (
-    languages.find((l) => l.language.toLowerCase() === language.toLowerCase())
-      ?.code || fallback
+    languages.find(
+      (l) =>
+        l.code === language ||
+        l.language.toLowerCase().includes(language.toLowerCase())
+    )?.code || fallback
   );
 }
 

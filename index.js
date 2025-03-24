@@ -54,9 +54,9 @@ import {
 import { tunnel } from "./src/utils/tunnel.js";
 import "dotenv/config";
 import smartlife from "./src/automation/smartlife.js";
+import { whisper } from "./src/voice/whisper.js";
 import path from "path";
 import { fileURLToPath } from "url";
-import { whisper } from "./src/voice/whisper.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name of the directory
 

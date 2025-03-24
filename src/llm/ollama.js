@@ -370,5 +370,5 @@ function splitByPunctuation(text) {
   for (let i = 0; i < sentences.length - 1; i += 2) {
     result.push(sentences[i] + sentences[i + 1]);
   }
-  return result;
+  return result.length > 0 ? result : sentences;
 }

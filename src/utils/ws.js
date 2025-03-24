@@ -1,5 +1,5 @@
 import WebSocket, { WebSocketServer } from "ws";
-import { getProcessing, logic, setProcessing } from "../../index.js";
+import { logic } from "../../index.js";
 import {
   getLang,
   setLang,
@@ -18,10 +18,9 @@ import { isIPAllowed } from "./IP.js";
 import { getFaceMatcher } from "../image/recognition.js";
 import { analyzeAndRecognize } from "../image/tensorflow.js";
 import { detect_objects_on_image } from "../image/onnx.js";
-import LanguageDetect from "languagedetect";
+import { detect, detectAll, langName } from "tinyld";
+import { eld } from "eld";
 import { mapLanguageToCode } from "./mapping.js";
-
-const languageDetector = new LanguageDetect();
 
 export let wss = null;
 
@@ -62,18 +61,30 @@ export const startWs = () => {
           if (json.llm != null) setLLM(json.llm);
           if (json.keepInMemory != null) setKeepInMemory(json.keepInMemory);
           if (json.text != null && json.text != "") {
-            const detected = languageDetector.detect(json.text, 10);
-            console.log(detected);
-            const language = detected?.shift()?.shift();
-            console.log(language, mapLanguageToCode(language, getLang()));
-            setLang(mapLanguageToCode(language, getLang()));
+            const detectedtinyld = detect(json.text);
+            const detectedEld = eld.detect(json.text).language;
+            console.log(
+              "Detected language: ",
+              detectedtinyld,
+              detectedEld,
+              langName(detectedEld)
+            );
+            const mapped = mapLanguageToCode(
+              detectedEld || detectedtinyld,
+              getLang()
+            );
+            console.log(detectedEld || detectedtinyld, mapped);
+            setLang(mapped);
             await logic(json.text, null, ws);
           }
         }
         if (isBinary) {
           if (req.url == "/recognition") {
-            let faceBuffer = await analyzeAndRecognize(data, getFaceMatcher());
-            let objectsBuffer = await detect_objects_on_image(faceBuffer);
+            const faceBuffer = await analyzeAndRecognize(
+              data,
+              getFaceMatcher()
+            );
+            const objectsBuffer = await detect_objects_on_image(faceBuffer);
             sendToAll(objectsBuffer, true);
           } else
             await logic(
