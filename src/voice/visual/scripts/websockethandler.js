@@ -222,6 +222,5 @@ const pageKite = true;
 const subdomain = "personala";
 if (pageKite) {
   WS = new WebSocketHandler(`wss://ws-${subdomain}.pagekite.me`);
-  // WS1 = new WebSocketHandler(`wss://ws-${subdomain}.pagekite.me/recognition`);
-  WS1 = new WebSocketHandler(`ws://localhost:80/recognition`);
+  WS1 = new WebSocketHandler(`wss://ws-${subdomain}.pagekite.me/recognition`);
 } else WS = new WebSocketHandler(`wss://ws${subdomain}.loca.lt`);
