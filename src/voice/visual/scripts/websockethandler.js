@@ -219,8 +219,11 @@ class WebSocketHandler {
   }
 }
 const pageKite = true;
-const subdomain = "personala";
+const subdomain = "person";
 if (pageKite) {
   WS = new WebSocketHandler(`wss://ws-${subdomain}.pagekite.me`);
   WS1 = new WebSocketHandler(`wss://ws-${subdomain}.pagekite.me/recognition`);
-} else WS = new WebSocketHandler(`wss://ws${subdomain}.loca.lt`);
+} else {
+  WS = new WebSocketHandler(`wss://ws${subdomain}.loca.lt`);
+  WS1 = new WebSocketHandler(`wss://ws${subdomain}.loca.lt/recognition`);
+}

@@ -288,8 +288,3 @@ async function toggleRecording(cb) {
     stopRecording();
   }
 }
-
-// // Initialization
-// (async () => {
-//   await toggleRecording(); // Start recording initially
-// })();
