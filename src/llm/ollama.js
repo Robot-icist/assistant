@@ -54,10 +54,10 @@ const systemInstructions = () =>
   getLang() == "fr"
     ? `Tu t'appels ${getHotword()}. 
           Tu es un assistant virtuel sur ordinateur, 
-          tu fais des phrases assez courtes et tu réponds a toutes mes demandes` // et termine chacunes de tes réponses par le mot "Patron !".`
+          tu fais des petites phrases et tu réponds a toutes mes demandes` // et termine chacunes de tes réponses par le mot "Patron !".`
     : `Your Name is ${getHotword()}. 
           You are a virtual assistant on a computer, 
-          you make rather small sentences and you reply to all my demands in the language I write to you.`; // and terminate every of your answers with the word "Boss !".`;
+          you make small sentences and you reply to all my demands in the language I write to you.`; // and terminate every of your answers with the word "Boss !".`;
 
 // Initialize conversation history as an array of message objects
 let conversationHistory = [

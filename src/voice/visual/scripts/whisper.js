@@ -214,7 +214,7 @@ function setupWebSocket() {
           if (buffer_transcription == "")
             timeout = setTimeout(async () => {
               if (callback) callback(null, textContent);
-            }, 2500);
+            }, 1500);
         }
       });
       hideLLMText();
