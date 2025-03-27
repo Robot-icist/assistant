@@ -9,8 +9,9 @@ const publicDir = resolve(__dirname, "../voice/visual");
 const port = 1234;
 
 app.use((req, res, next) => {
-  console.log(req.ip, req.ip.split(":").pop(), isIPAllowed(req.ip));
-  isIPAllowed(req.ip) ? next() : res.sendStatus(403);
+  const ip = req.headers["x-forwarded-for"] || req.ip;
+  console.log(ip, ip.split(":").pop(), isIPAllowed(ip));
+  isIPAllowed(ip) ? next() : res.sendStatus(403);
 });
 app.use(express.static(publicDir));
 app.listen(port, () => console.log(`Server running on port ${port}`));
