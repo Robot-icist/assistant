@@ -456,6 +456,8 @@ def is_ip_allowed(ip: str) -> bool:
 async def filter_http_requests(request: Request, call_next):
     """Middleware to filter HTTP requests based on IP."""
     client_ip = request.client.host.rsplit(":", 1)[-1]
+    print(request)
+    print(client_ip)
     if not is_ip_allowed(client_ip):
         raise HTTPException(status_code=403, detail="Forbidden: IP not allowed")
     return await call_next(request)
@@ -468,6 +470,7 @@ async def get():
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket connection with IP filtering."""
     client_ip = websocket.client.host.rsplit(":", 1)[-1]
+    print(websocket)
     print(client_ip)
     if not is_ip_allowed(client_ip):
         await websocket.close(code=1008)  # Close WebSocket with "Policy Violation"

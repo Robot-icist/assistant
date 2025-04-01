@@ -152,7 +152,7 @@ export const logic = async (recognizedText, bytes = null, ws = null) => {
   setCurrentRequestWs(ws);
   setProcessing(true);
   sendToAll("loading:true");
-  //
+  //Language detection
   const detectedtinyld = detect(recognizedText);
   const detectedEld = eld.detect(recognizedText).language;
   const mapped = mapLanguageToCode(detectedEld || detectedtinyld, getLang());

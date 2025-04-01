@@ -236,7 +236,7 @@
           <input
             id="websocketInput"
             type="text"
-            value="ws://localhost:10000/asr"
+            value="wss://whisper-person.pagekite.me/asr"
           />
         </div>
       </div>
@@ -252,7 +252,7 @@
       let websocket = null;
       let recorder = null;
       let chunkDuration = 500;
-      let websocketUrl = "ws://localhost:10000/asr";
+      let websocketUrl = "wss://whisper-person.pagekite.me/asr";
       let userClosing = false;
 
       const statusText = document.getElementById("status");
