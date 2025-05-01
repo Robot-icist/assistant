@@ -1,10 +1,10 @@
 import { hotword, customHotword } from "./src/voice/hotword.js";
-import {
-  startMicRecognition,
-  stopMicRecognition,
-  cleanupMicRecognition,
-  recordAudioToFile,
-} from "./src/voice/recognition.js";
+// import {
+//   startMicRecognition,
+//   stopMicRecognition,
+//   cleanupMicRecognition,
+//   recordAudioToFile,
+// } from "./src/voice/recognition.js";
 import { ollamaChat, ollamaVision, stopStream } from "./src/llm/ollama.js";
 import {
   getLang,
@@ -32,11 +32,7 @@ import {
   registerVoiceClone,
 } from "./src/utils/helper.js";
 import { generateImage, generateVideo } from "./src/image/stable-diffusion.js";
-import {
-  generateFaceVideo,
-  videoGenerationProcess,
-} from "./src/image/videoGenerationProcess.js";
-import { firstOrderModelProcess } from "./src/image/firstOrderModelProcess.js";
+
 import { sadTalkerProcess } from "./src/image/sadTalkerProcess.js";
 import { rl } from "./src/utils/rl.js";
 import {
@@ -51,7 +47,7 @@ import {
   wss,
 } from "./src/utils/ws.js";
 import { sleep } from "@nut-tree-fork/nut-js";
-import preventSleep from "node-prevent-sleep";
+// import preventSleep from "node-prevent-sleep";
 import {
   runExecutableWithArgs,
   runPowerShellAsAdmin,
@@ -93,28 +89,18 @@ if (process.env.GLOBAL) {
   (async () => await tunnel())();
 }
 
-if (process.env.TTS) {
-  ttsProcess.start();
-}
-
-if (process.env.VIDEO) {
-  if (process.env.FOMM) {
-    videoGenerationProcess.start();
-    firstOrderModelProcess.start();
-  } else sadTalkerProcess.start();
-}
-
 if (process.env.WHISPER) {
   whisper.start();
 }
 
-preventSleep.enable();
+// preventSleep.enable();
+
 // Graceful shutdown on interrupt signal
 process.on("SIGINT", async () => {
   console.log("\nShutting down gracefully.");
   let { cleanupMicRecognition } = await import("./src/voice/recognition.js");
   cleanupMicRecognition();
-  preventSleep.disable();
+  // preventSleep.disable();
   process.exit();
 });
 
@@ -287,41 +273,41 @@ export const logic = async (recognizedText, bytes = null, ws = null) => {
   sendToAll("loading:false");
 };
 
-let selectedHotwordRecognition = process.env.CUSTOM ? customHotword : hotword;
+// let selectedHotwordRecognition = process.env.CUSTOM ? customHotword : hotword;
 
-if (!process.env.MUTE)
-  selectedHotwordRecognition((err, output) => {
-    if (err) {
-      console.error("\nHotword Error occurred:", err.message);
-    } else {
-      console.log("\nHotword output:", output);
+// if (!process.env.MUTE)
+//   selectedHotwordRecognition((err, output) => {
+//     if (err) {
+//       console.error("\nHotword Error occurred:", err.message);
+//     } else {
+//       console.log("\nHotword output:", output);
 
-      // Check for the keyword detection
-      if (output.includes("Detected")) {
-        console.log("\nHotword detected.");
+//       // Check for the keyword detection
+//       if (output.includes("Detected")) {
+//         console.log("\nHotword detected.");
 
-        if (processing) return;
+//         if (processing) return;
 
-        playAudio(path.join(__dirname, "./src/audio/blip.mp3"));
+//         playAudio(path.join(__dirname, "./src/audio/blip.mp3"));
 
-        const recognition = () => {
-          console.log("\nStarting microphone recognition.");
-          // Start microphone recognition and handle results
-          startMicRecognition(async (recognizedText) => {
-            stopMicRecognition();
-            console.log("\nRecognized text:", recognizedText);
-            await logic(recognizedText);
-            if (recognizedText !== "") {
-              while (audioQueue.length > 0 && getIsAudioProcessing())
-                await sleep(250);
-              recognition();
-            }
-          });
-        };
-        recognition();
-      }
-    }
-  });
+//         const recognition = () => {
+//           console.log("\nStarting microphone recognition.");
+//           // // Start microphone recognition and handle results
+//           // startMicRecognition(async (recognizedText) => {
+//           //   stopMicRecognition();
+//           //   console.log("\nRecognized text:", recognizedText);
+//           //   await logic(recognizedText);
+//           //   if (recognizedText !== "") {
+//           //     while (audioQueue.length > 0 && getIsAudioProcessing())
+//           //       await sleep(250);
+//           //     recognition();
+//           //   }
+//           // });
+//         };
+//         recognition();
+//       }
+//     }
+//   });
 
 try {
   (async () => {

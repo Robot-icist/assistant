@@ -37,12 +37,12 @@ const makeLocalTunnel = async (port = 80, subdomain = "personalassistant") => {
 
 const pageKite = true;
 
-const subdomain = "person";
+const subdomain = "personalia";
 
 export const tunnel = async () => {
   if (pageKite) {
     runExecutableWithArgs(
-      "python2",
+      "python",
       [
         path.resolve(__dirname, "../python/pagekite.py"),
         "80",

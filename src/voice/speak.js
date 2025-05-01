@@ -2,12 +2,7 @@ import say from "say";
 import { LOG } from "../utils/log.js";
 import { ttsProcess } from "./tts.js";
 import { exec } from "child_process";
-import {
-  generateFaceVideo,
-  videoGenerationProcess,
-} from "../image/videoGenerationProcess.js";
 import fs from "fs";
-import { firstOrderModelProcess } from "../image/firstOrderModelProcess.js";
 import { sleep } from "@nut-tree-fork/nut-js";
 import { sadTalkerProcess } from "../image/sadTalkerProcess.js";
 import { sendToAll } from "../../src/utils/ws.js";
@@ -23,6 +18,8 @@ import { runPowerShellAsAdmin } from "../utils/processRunner.js";
 import { getProcessing } from "../../index.js";
 import path from "path";
 import { fileURLToPath } from "url";
+import { ttsGradio } from "./tts-gradio.js";
+import { dreamtalkGradio } from "../image/dreamtalk-gradio.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name of the directory
 
@@ -110,47 +107,6 @@ deleteDir(resultsPath);
 
 deleteTempDir();
 
-firstOrderModelProcess.events.on("done", async (data) => {
-  if (!video) return;
-  // console.log("received fomm event done", data);
-  let resolve = resolves.shift();
-  let convertedPath = createTempFileName("converted", "mp4");
-  console.log("received FOMM event done", data, videoOutputPath, convertedPath);
-
-  if (process.env.MUTE && getProcessing()) {
-    await convertToH264(videoOutputPath, convertedPath);
-    fs.readFile(convertedPath, (err, data) => {
-      if (err) {
-        console.error("\nError reading the MP4 file:", err);
-        return;
-      }
-      console.log("\nSending MP4 file...");
-      // Send the WAV file as binary data
-      sendToAll(data, true);
-      setTimeout(async () => await fs.promises.unlink(convertedPath), 1000);
-    });
-  }
-
-  resolve?.tempfile?.delete();
-  resolve.resolve();
-  console.timeEnd(resolve?.timeName);
-});
-
-videoGenerationProcess.events.on("done", (data) => {
-  if (!video) return;
-  // console.log("received event done", data);
-  firstOrderModelProcess.sendCommand({
-    config: "config/vox-adv-256.yaml",
-    // config: "config/vox-256.yaml",
-    checkpoint: "vox-adv-cpk.pth.tar",
-    // checkpoint: "vox-cpk.pth.tar",
-    sourceImage: sourceImagePath,
-    drivingVideo: videoOutputPath,
-    windowWidth: 600,
-    windowsHeight: 600,
-  });
-});
-
 sadTalkerProcess.events.on("done", async (data) => {
   if (!video) return;
   let filepath = data.split("\\").pop();
@@ -215,16 +171,6 @@ ttsProcess.events.on("done", async (data) => {
   const tempfile = await createTempFileFromBuffer(fileBuffer, "wav");
   const timeName = `video:${resolve.text}`;
   resolves.unshift({ ...resolve, tempfile, timeName });
-  if (process.env.FOMM)
-    generateFaceVideo(
-      "C:/Projects/assistant/src/python/speech-driven-animation/example/image.bmp",
-      tempfile.path,
-      videoOutputPath,
-      600,
-      600,
-      false
-    );
-  else
     sadTalkerProcess.sendCommand({
       drivenAudio: tempfile.path,
       sourceImage: sourceImagePath,
@@ -239,19 +185,64 @@ export async function speak(text, speakerId = sourceId) {
   if (text.trim() === "" || !getProcessing()) return;
   setSpeakerId(speakerId);
   await sleep(300);
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     try {
       if (process.env.TTS) {
-        const timeName = `tts:${text}`;
+        let timeName = `tts:${text}`;
         console.time(timeName);
-        ttsProcess.sendCommand({
-          text: text,
-          speakerWav: speakerWavPath,
-          language: lang,
-          outputFile: audioOutput,
-          playAudio: false,
-        });
-        resolves.push({ resolve, text, timeName });
+        // resolves.push({ resolve, text, timeName });
+        const data = await ttsGradio(text,lang, speakerWavPath);
+          console.timeEnd(timeName);
+          // console.log("ttsGradio data", data); 
+          const resultpath = data[1].path;
+          console.log("resultpath", resultpath);
+          setTimeout(async () => {
+            await fs.promises.unlink(resultpath);
+            console.log("Temporary converted file deleted: ", resultpath);
+          }, 60 * 1000);
+          if (!video && !process.env.MUTE) playAudio(resultpath);
+          // Read the WAV file as a buffer
+          if (process.env.MUTE && !video && getProcessing())
+            fs.readFile(resultpath, (err, data) => {
+              if (err) {
+                console.error("\nError reading the WAV file:", err);
+                return;
+              }
+              console.log("\nSending WAV file...");
+              // Send the WAV file as binary data
+              sendToAll(data, true);
+            });
+          if (!video) return resolve();
+          if (!getProcessing()) return resolve();
+          timeName = `video:${text}`;
+          console.time(timeName);
+          const videoData = await dreamtalkGradio(resultpath,sourceImagePath);
+            console.timeEnd(timeName);
+            // console.log("dreamtalkGradio data", data);
+            const videoPath = videoData[0].video.path;
+            console.log(videoPath);
+            let convertedPath = createTempFileName("converted", "mp4");
+            if (process.env.MUTE && getProcessing()) {
+              console.log("before convert");
+              await convertToH264(videoPath, convertedPath);
+              console.log("afteer convert");
+              fs.readFile(convertedPath, (err, data) => {
+              console.log("in read convert");
+
+                if (err) {
+                  console.error("\nError reading the MP4 file:", err);
+                  return;
+                }
+                console.log("\nSending MP4 file...");
+                // Send the WAV file as binary data
+                sendToAll(data, true);
+                setTimeout(async () => {
+                  await fs.promises.unlink(convertedPath);
+                  console.log("Temporary converted file deleted: ", convertedPath);
+                }, 60 * 1000);
+                return resolve();
+              });
+            }
       } else {
         say.getInstalledVoices(console.log);
         let voice = lang == "fr" ? "Microsoft Paul" : "Microsoft David";

@@ -7,7 +7,7 @@ import {
   faceSwap,
 } from "./tensorflow.js";
 import { initializeOnnx, detect_objects_on_image } from "./onnx.js";
-import { initializeCV, detectObjects } from "./opencv.js";
+// import { initializeCV, detectObjects } from "./opencv.js";
 import camera, { videoCapture } from "./camera.js";
 import puppeteer from "puppeteer";
 

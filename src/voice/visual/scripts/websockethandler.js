@@ -219,7 +219,7 @@ class WebSocketHandler {
   }
 }
 const pageKite = true;
-const subdomain = "person";
+const subdomain = "personalia";
 if (pageKite) {
   WS = new WebSocketHandler(`wss://ws-${subdomain}.pagekite.me`);
   WS1 = new WebSocketHandler(`wss://ws-${subdomain}.pagekite.me/recognition`);

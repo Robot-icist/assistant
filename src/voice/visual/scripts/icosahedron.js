@@ -269,10 +269,9 @@ assistantFolder
 
 assistantFolder
   .add(params, "llm", [
-    "llama3.2:1b",
-    "llama3.2",
-    "qwen2.5",
-    "phi3",
+    "llama3.2:3b",
+    "qwen2.5:3b",
+    "gemma3:4b",
     "deepseek-r1:1.5b",
     "llama2-uncensored",
   ])

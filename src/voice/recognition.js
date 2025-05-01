@@ -1,4 +1,4 @@
-import vosk from "vosk";
+// import vosk from "vosk";
 import fs from "fs";
 import { mic } from "./lib/mic.js";
 import path from "path";
@@ -27,10 +27,10 @@ if (!fs.existsSync(MODEL_PATH)) {
   process.exit(1);
 }
 
-// Initialize Vosk model and recognizer
-vosk.setLogLevel(process.env.DEBUG ? 0 : -1);
-const model = new vosk.Model(MODEL_PATH);
-const recognizer = new vosk.Recognizer({ model, sampleRate: SAMPLE_RATE });
+// // Initialize Vosk model and recognizer
+// vosk.setLogLevel(process.env.DEBUG ? 0 : -1);
+// const model = new vosk.Model(MODEL_PATH);
+// const recognizer = new vosk.Recognizer({ model, sampleRate: SAMPLE_RATE });
 
 let micInstance;
 let micInputStream;

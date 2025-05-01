@@ -1,8 +1,8 @@
-import cv from "@u4/opencv4nodejs";
+// import cv from "@u4/opencv4nodejs";
 import fs from "fs/promises";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { generateColorFromStringCV } from "../utils/mapping.js";
+// import { generateColorFromStringCV } from "../utils/mapping.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // Get the directory name
 

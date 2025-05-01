@@ -16,4 +16,4 @@ foreach ($voice in $listVoices) {
 }
 
 # # Wait for user input before closing
-# Read-Host "Press Enter to exit"
+Read-Host "Press Enter to exit"

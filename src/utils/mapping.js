@@ -1,5 +1,5 @@
 import { Key } from "@nut-tree-fork/nut-js";
-import cv from "@u4/opencv4nodejs";
+// import cv from "@u4/opencv4nodejs";
 
 export function mapLanguageToCode(language, fallback = "en") {
   const languages = [
@@ -213,22 +213,22 @@ export function generateColorFromString(str) {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-export function generateColorFromStringCV(str) {
-  // Hash the class name string to create a unique color
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash = hash & hash; // Convert to 32bit integer
-  }
+// export function generateColorFromStringCV(str) {
+//   // Hash the class name string to create a unique color
+//   let hash = 0;
+//   for (let i = 0; i < str.length; i++) {
+//     hash = (hash << 5) - hash + str.charCodeAt(i);
+//     hash = hash & hash; // Convert to 32bit integer
+//   }
 
-  // Map the hash to RGB values (0-255)
-  const b = (hash & 0xff0000) >> 16;
-  const g = (hash & 0x00ff00) >> 8;
-  const r = hash & 0x0000ff;
+//   // Map the hash to RGB values (0-255)
+//   const b = (hash & 0xff0000) >> 16;
+//   const g = (hash & 0x00ff00) >> 8;
+//   const r = hash & 0x0000ff;
 
-  // Return a cv.Vec format color (BGR order for OpenCV)
-  return new cv.Vec(b, g, r);
-}
+//   // Return a cv.Vec format color (BGR order for OpenCV)
+//   return new cv.Vec(b, g, r);
+// }
 
 export default {
   mapGlobalKeyToNutKey,

@@ -77,7 +77,7 @@ export const stopStream = () => {
   abortController?.abort();
 };
 
-let llm = "llama3.2:1b";
+let llm = "llama3.2:3b";
 
 export const setLLM = (val) => (llm = val);
 /**
