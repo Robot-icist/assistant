@@ -11,7 +11,7 @@ const pythonScriptPath = path.resolve(
   "../python/sadtalker/inference_persistent.py"
 ); // Path to your Python script
 const condaPromptPath = "C:/Users/Gille/miniconda3/Scripts/activate.bat"; // Adjust this path to the Anaconda activation script
-const condaEnvName = "tf"; // Replace with your Anaconda environment name
+const condaEnvName = "sadtalker"; // Replace with your Anaconda environment name
 
 class SadTalkerProcess {
   constructor() {
@@ -76,7 +76,7 @@ class SadTalkerProcess {
       params.sourceImage
     } ${params.still ? "--still" : ""} ${
       params.enhance ? "--enhancer gfpgan" : "" // RestoreFormer
-    } --play ${params.play} --batch_size ${params.batchSize ?? 16}\n`;
+    } --play ${params.play} --batch_size ${params.batchSize ?? 32}\n`;
     console.log(`\nSending command to Python SadTalker: ${command}`);
     this.process.stdin.write(command); // Send the command to the Python process
   }

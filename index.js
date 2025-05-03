@@ -24,14 +24,13 @@ import {
   stop,
 } from "./src/image/camera.js";
 import * as recognition from "./src/image/recognition.js";
-import { ttsProcess } from "./src/voice/tts.js";
 import { exec } from "child_process";
 import {
   registerFace,
   registerHotword,
   registerVoiceClone,
 } from "./src/utils/helper.js";
-import { generateImage, generateVideo } from "./src/image/stable-diffusion.js";
+// import { generateImage, generateVideo } from "./src/image/stable-diffusion.js";
 
 import { sadTalkerProcess } from "./src/image/sadTalkerProcess.js";
 import { rl } from "./src/utils/rl.js";
@@ -59,6 +58,7 @@ import { whisper } from "./src/voice/whisper.js";
 import { detect } from "tinyld";
 import { eld } from "eld";
 import { mapLanguageToCode } from "./src/utils/mapping.js";
+import { comfyClient, generateImage } from "./src/image/comfyui.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -91,6 +91,10 @@ if (process.env.GLOBAL) {
 
 if (process.env.WHISPER) {
   whisper.start();
+}
+
+if(process.env.VIDEO && process.env.SADTALKER === "true"){ 
+  sadTalkerProcess.start();   
 }
 
 // preventSleep.enable();
@@ -181,20 +185,25 @@ export const logic = async (recognizedText, bytes = null, ws = null) => {
     let data;
     if (prompt.includes("image")) {
       console.log(data);
-      data = await generateImage(
-        prompt,
-        false,
-        process.env.MUTE ? false : true
-      );
-      sendToAll(data.buffer, true);
-    } else if (prompt.includes("video"))
-      await generateVideo(
-        prompt,
-        24,
-        2,
-        false,
-        process.env.MUTE ? false : true
-      );
+      // data = await generateImage(
+      //   prompt,
+      //   false,
+      //   process.env.MUTE ? false : true
+      // );
+      // sendToAll(data.buffer, true);
+      await generateImage(prompt)
+          .then(() => console.log("done"))
+          .catch((e) => console.error(e))
+          // .finally(() => comfyClient.close());
+
+    } else if (prompt.includes("video")){}
+      // await generateVideo(
+      //   prompt,
+      //   24,
+      //   2,
+      //   false,
+      //   process.env.MUTE ? false : true
+      // );
   } else if (
     recognizedText.includes("repete") ||
     recognizedText.includes("repeat")

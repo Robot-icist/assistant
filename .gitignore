@@ -355,6 +355,7 @@ src/python/speech-driven-animation/sda/data/
 *.pt
 *.pth
 *.safetensors
+*.pyc
 
 .parcel-cache/
 **/.parce-cache/

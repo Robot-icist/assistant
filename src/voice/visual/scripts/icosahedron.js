@@ -40,8 +40,8 @@ const params = {
   size: 4,
   wakeword: "Jarvis",
   model: "vosk-model-small-fr-pguyot-0.3.tar.gz",
-  llm: "llama3.2",
-  speaker: 0,
+  llm: "llama3.2:3b",
+  speaker: 1,
   video: false,
   google: false,
   whisper: false,
@@ -270,10 +270,10 @@ assistantFolder
 assistantFolder
   .add(params, "llm", [
     "llama3.2:3b",
-    "qwen2.5:3b",
+    "artifish/llama3.2-uncensored",
+    "qwen2.5",
     "gemma3:4b",
-    "deepseek-r1:1.5b",
-    "llama2-uncensored",
+    "deepseek-r1:7b",
   ])
   .onChange(async (value) => {
     params.llm = value;

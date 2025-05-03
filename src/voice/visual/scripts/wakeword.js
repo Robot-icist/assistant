@@ -25,6 +25,15 @@ const logic = async (text) => {
         text.toLowerCase().includes("front");
 
       return await takePicture(front ? "user" : "environment");
+    }else if (
+      text.toLowerCase().includes("recognition") ||
+      text.toLowerCase().includes("reconnaissance")
+    ) {
+      sendParams();
+      let front =
+        text.toLowerCase().includes("devant") ||
+        text.toLowerCase().includes("front");
+      await startRecognition(front ? "user" : "environment");
     } else if (text.toLowerCase().includes("stop")) {
       stopProcessing();
     } else sendParams(text);

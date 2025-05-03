@@ -248,7 +248,8 @@ export async function ollamaVision(basePrompt, speak, bytes) {
     //let stream;
     if (!google)
       stream = await ollamaInstance.generate({
-        model: "benzie/llava-phi-3",
+        model: "gemma3:4b",
+        // model: "benzie/llava-phi-3",
         // model: "llama3.2-vision",
         // model: "llava",
         prompt: systemInstructions() + " " + basePrompt,

@@ -73,7 +73,7 @@ const listenForTextInput = () => {
 
         await takePicture(front ? "user" : "environment");
       }
-      if (
+      else if (
         textBuffer.toLowerCase().includes("recognition") ||
         textBuffer.toLowerCase().includes("reconnaissance")
       ) {

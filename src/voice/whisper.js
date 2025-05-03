@@ -13,8 +13,6 @@ const pythonScriptPath = path.resolve(
   __dirname,
   "../python/whisper_streaming_web/whisper_fastapi_online_server.py"
 );
-const condaPromptPath = "C:/Users/Gille/miniconda3/Scripts/activate.bat"; // Adjust this path to the Anaconda activation script
-const condaEnvName = "tf"; // Replace with your Anaconda environment name
 const args = [
   "--host",
   "0.0.0.0",
@@ -45,7 +43,8 @@ class WhisperProcess {
   }
 
   start() {
-    const command = `${condaPromptPath} && activate ${condaEnvName} && python ${pythonScriptPath} ${args.join(
+    // const command = `${condaPromptPath} && activate ${condaEnvName} && 
+    const command = `python3 ${pythonScriptPath} ${args.join(
       " "
     )}`;
 
