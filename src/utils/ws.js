@@ -72,8 +72,8 @@ export const startWs = () => {
           } else
             await logic(
               getLang() == "fr"
-                ? "Decris ce que tu vois dans cette image rapidement et réponds en Français"
-                : "Describe what you see in this image shortly and answer in English",
+                ? "Ton seul et unique but est de decrire ce que tu vois dans cette image rapidement et concentre toi sur ça et rien d'autre"
+                : "Your sole and only goal is to describe what you see in this image shortly and focus on that and nothing else",
               data,
               ws
             );

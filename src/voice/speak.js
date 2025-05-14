@@ -101,6 +101,8 @@ export const setVideo = (val) => {
 
 let resolves = [];
 
+export const setResolves = (r) => resolves = r;
+
 const resultsPath = path.resolve(__dirname, "../python/sadtalker/results");
 
 deleteDir(resultsPath);
@@ -155,9 +157,10 @@ export async function speak(text, speakerId = sourceId) {
         console.time(timeName);
         resolves.push({ resolve, text, timeName });
         const data = await ttsGradio(text, lang, speakerWavPath);
+        console.log(data)
         console.timeEnd(timeName);
         // console.log("ttsGradio data", data); 
-        const resultpath = data[1].path;
+        const resultpath = data[0].path;
         console.log("resultpath", resultpath);
         setTimeout(async () => {
           await fs.promises.unlink(resultpath);

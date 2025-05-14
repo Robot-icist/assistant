@@ -10,6 +10,7 @@ import {
   getLang,
   removeDiacritics,
   setLang,
+  setResolves,
   speak,
 } from "./src/voice/speak.js";
 import {
@@ -130,6 +131,7 @@ export const Stop = () => {
   setProcessing(false);
   sendToAll("loading:false");
   sendToAll("stop:true");
+  setResolves([]);
 };
 
 export const logic = async (recognizedText, bytes = null, ws = null) => {
