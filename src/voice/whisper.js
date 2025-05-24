@@ -40,6 +40,7 @@ class WhisperProcess {
     this.timeout = null;
     this.timeoutCount = 0;
     this.activityCheckIntervalId = null; // Store the interval id to clear it later
+    killProcessByPort(10000).catch(() => {});
   }
 
   start() {
@@ -140,7 +141,7 @@ class WhisperProcess {
   stop() {
     this._stopActivityCheck(); // Stop the activity check before stopping the process
     if (this.process) {
-      killProcessByPort(10000);
+      killProcessByPort(10000).catch(() => {});
       this.controller.abort();
       this.process.kill();
       this.process = null;

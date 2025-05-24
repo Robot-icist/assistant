@@ -139,7 +139,7 @@ sadTalkerProcess.events.on("done", async (data) => {
       }, 60 * 1000);
     });
   }
-
+  console.log(resolve);
   resolve?.tempfile?.delete();
   resolve?.resolve();
   console.timeEnd(resolve?.timeName);
@@ -186,15 +186,14 @@ export async function speak(text, speakerId = sourceId) {
         const tempfile = await createTempFileFromBuffer(fileBuffer, "wav");
         if(process.env.SADTALKER === "true") {
           let res = resolves.shift();
-          resolves.unshift({ ...res, tempfile, timeName });
+          resolves.unshift({ ...res, resolve, tempfile, timeName });
           sadTalkerProcess.sendCommand({
             drivenAudio: tempfile.path,
             sourceImage: sourceImagePath,
-            still: false,
+            still: true,
             enhance: false,
             play: process.env.MUTE ? false : true,
           });
-          console.time(timeName);
         }
         else {
           // dreamtalk

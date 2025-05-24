@@ -125,14 +125,43 @@ class WebSocketHandler {
 
   enqueueMedia(buffer, type) {
     this.mediaQueue.push({ buffer, type });
+    this.updateMediaQueueDisplay();
     if (!this.isPlaying) {
       this.playNextMedia();
     }
   }
 
+  updateMediaQueueDisplay() {
+    let queueDiv = document.getElementById("media-queue-display");
+    if (!queueDiv) {
+      queueDiv = document.createElement("div");
+      queueDiv.id = "media-queue-display";
+      queueDiv.style.position = "fixed";
+      queueDiv.style.top = "0";
+      queueDiv.style.left = "0";
+      queueDiv.style.width = "100vw";
+      queueDiv.style.display = "flex";
+      queueDiv.style.justifyContent = "center";
+      queueDiv.style.alignItems = "center";
+      queueDiv.style.zIndex = "10000";
+      queueDiv.style.pointerEvents = "none";
+      queueDiv.style.fontSize = "2rem";
+      queueDiv.style.padding = "1rem 0";
+      document.body.prepend(queueDiv);
+    }
+    // Only show for items not currently playing
+    const icons = this.mediaQueue.map(() => "▶").join(" "); // White play button emoji
+    queueDiv.textContent = icons;
+    queueDiv.style.color = "white";
+    queueDiv.style.textShadow = "0 0 8px black";
+    if (this.mediaQueue.length === 0) queueDiv.textContent = "";
+  }
+
   playNextMedia() {
+    this.updateMediaQueueDisplay(); // Always update at the start
     if (this.mediaQueue.length === 0) {
       this.isPlaying = false;
+      this.updateMediaQueueDisplay();
       return;
     }
 
@@ -192,28 +221,48 @@ class WebSocketHandler {
       mediaElement.appendChild(source);
       document.body.appendChild(mediaElement);
       if (mediaElement.id == "image") this.playNextMedia();
+
+      let oneSecondBeforeEndFired = false;
+      let timeBeforeEnd = 0.5;
       mediaElement.onended = () => {
+        if(type.startsWith("video")) return;
         WS.events.emit("played");
-        //document.body.removeChild(mediaElement);
+        // document.body.removeChild(mediaElement);
         URL.revokeObjectURL(url);
         this.playNextMedia();
+        setTimeout(() => this.updateMediaQueueDisplay(), 0);
       };
-
+      mediaElement.ontimeupdate = () => {
+        if(!type.startsWith("video")) return;
+        if (
+          mediaElement.duration &&
+          mediaElement.currentTime >= mediaElement.duration - timeBeforeEnd &&
+          !oneSecondBeforeEndFired
+        ) {
+          oneSecondBeforeEndFired = true;
+          console.log(timeBeforeEnd, " seconds before video ends!");
+          WS.events.emit("played");
+          // document.body.removeChild(mediaElement);
+          URL.revokeObjectURL(url);
+          this.playNextMedia();
+          setTimeout(() => this.updateMediaQueueDisplay(), 0);
+        }
+      };
       mediaElement.onerror = () => {
         WS.events.emit("played");
         console.error("Media failed to load:", mediaElement.error);
         alert("Failed to play media. Downloading instead...");
         window.location.href = url;
-        //document.body.removeChild(mediaElement);
         URL.revokeObjectURL(url);
         this.playNextMedia();
+        setTimeout(() => this.updateMediaQueueDisplay(), 0);
       };
-
       mediaElement.onclick = () => {
         WS.events.emit("played");
         mediaElement.remove();
         URL.revokeObjectURL(url);
         this.playNextMedia();
+        setTimeout(() => this.updateMediaQueueDisplay(), 0);
       };
     }
   }
