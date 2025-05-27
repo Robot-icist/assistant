@@ -131,6 +131,7 @@ export async function ollamaChat(text, speak, model = llm) {
         keep_alive: keepInMemory ? -1 : 0,
         options: {
           temperature: getEvil() ? 0.8 : 0,
+          num_gpus: 64,
         },
       });
     else {

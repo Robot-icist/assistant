@@ -392,12 +392,12 @@ export async function processWavBuffer(arrayBuffer) {
   source.connect(analyser);
   analyser.connect(mediaStreamDestination);
   // source.connect(audioContext.destination); // Connect to output (optional) to hear it
-
+  let previousColor = color;
   source.onended = () => {
     for (let track of microphoneStream.getAudioTracks()) {
       track.enabled = true;
     }
-    changeColor(params.alwaysOn ? "gold" : "deepskyblue");
+    changeColor(params.alwaysOn ? "gold" : previousColor);
   };
   // Start playing the audio
   source.start();
@@ -455,3 +455,5 @@ WS.addCallback((data, isBinary, type) => {
 
   changeColor(value);
 });
+
+changeColor("deepskyblue");

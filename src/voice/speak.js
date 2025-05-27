@@ -156,7 +156,7 @@ export async function speak(text, speakerId = sourceId) {
         let timeName = `tts:${text}`;
         console.time(timeName);
         resolves.push({ resolve, text, timeName });
-        const data = await ttsGradio(text, lang, speakerWavPath);
+        const data = await ttsGradio(`"${text}"`, lang, speakerWavPath);
         console.log(data)
         console.timeEnd(timeName);
         // console.log("ttsGradio data", data); 

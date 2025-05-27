@@ -168,10 +168,9 @@ function hideText() {
   if (llmText) llmText.remove();
 }
 
-function showLoader() {
-  // Create loader container element
+function showLoader(numDots = 9) {
   const loaderContainer = document.createElement("div");
-  loaderContainer.id = "loader"; // Set the id to 'loader'
+  loaderContainer.id = "loader";
   loaderContainer.style.position = "fixed";
   loaderContainer.style.bottom = "0";
   loaderContainer.style.left = "0";
@@ -180,50 +179,42 @@ function showLoader() {
   loaderContainer.style.display = "flex";
   loaderContainer.style.justifyContent = "center";
   loaderContainer.style.alignItems = "center";
-  // loaderContainer.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
   loaderContainer.style.zIndex = "9999";
 
-  // Create the loader (flash) element
-  const loader = document.createElement("div");
-  loader.className = "loader"; // Add class 'loader' for the styling you provided
+  // Create dots based on parameter
+  for (let i = 0; i < numDots; i++) {
+    const dot = document.createElement("div");
+    dot.className = "loader-dot";
+    dot.style.animationDelay = `${-1.2 + (i * 1.2 / numDots)}s`;
+    loaderContainer.appendChild(dot);
+  }
 
-  // Append the loader to the container
-  loaderContainer.appendChild(loader);
-
-  // Append the loader container to the body
   document.body.appendChild(loaderContainer);
 
-  // Add the flash animation and other styles to the document
   const styleSheet = document.createElement("style");
   styleSheet.innerText = `
-        .loader {
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background-color: #fff;
-            box-shadow: 32px 0 #fff, -32px 0 #fff;
-            position: relative;
-            animation: flash 0.5s ease-out infinite alternate;
-        }
+    .loader-dot {
+      width: ${Math.max(4, Math.min(16, 48/numDots))}px;
+      height: ${Math.max(4, Math.min(16, 48/numDots))}px;
+      margin: 0 ${Math.max(2, Math.min(8, 24/numDots))}px;
+      background-color: #fff;
+      border-radius: 50%;
+      display: inline-block;
+      animation: wave 1.2s ease-in-out infinite;
+      transition: all 0.3s ease;
+    }
 
-        @keyframes flash {
-            0% {
-                background-color: #FFF2;
-                box-shadow: 32px 0 #FFF2, -32px 0 #FFF;
-            }
-            50% {
-                background-color: #FFF;
-                box-shadow: 32px 0 #FFF2, -32px 0 #FFF2;
-            }
-            100% {
-                background-color: #FFF2;
-                box-shadow: 32px 0 #FFF, -32px 0 #FFF2;
-            }
-        }
-    `;
+    @keyframes wave {
+      0%, 60%, 100% {
+        transform: translateY(0);
+      }
+      30% {
+        transform: translateY(-15px);
+      }
+    }
+  `;
   document.head.appendChild(styleSheet);
 
-  // Return the loader container element to hide later if needed
   return loaderContainer;
 }
 

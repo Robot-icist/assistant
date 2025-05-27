@@ -146,19 +146,43 @@ class WebSocketHandler {
       queueDiv.style.zIndex = "10000";
       queueDiv.style.pointerEvents = "none";
       queueDiv.style.fontSize = "2rem";
-      queueDiv.style.padding = "1rem 0";
+      queueDiv.style.padding = "2rem 0";
       document.body.prepend(queueDiv);
     }
-    // Only show for items not currently playing
-    const icons = this.mediaQueue.map(() => "▶").join(" "); // White play button emoji
-    queueDiv.textContent = icons;
+    if (this.mediaQueue.length > 0) {
+      queueDiv.innerHTML = `
+        <span style="position:relative;display:inline-block;font-size:1.5em;">
+          ▶
+          <span style="
+            position:absolute;
+            top:-0.1em;
+            right:-0.1em;
+            background:linear-gradient(145deg,rgb(255, 255, 255),rgb(255, 255, 255));
+            color:black;
+            border-radius:1em;
+            padding:0.2em 0.2em;
+            font-size:0.8rem;
+            font-family:Silkscreen;
+            min-width:1.2em;
+            height:1.2em;
+            line-height:1.2em;
+            text-align:center;
+            box-shadow:0 2px 4px rgba(255, 255, 255, 0.2), inset 0 1px 3px rgba(255,255,255,0.3);
+            transform:scale(1);
+            transition:transform 0.2s ease;
+            pointer-events:none;
+            font-weight:bold;
+          ">${this.mediaQueue.length}</span>
+        </span>
+      `;
+    } else {
+      queueDiv.innerHTML = "";
+    }
     queueDiv.style.color = "white";
     queueDiv.style.textShadow = "0 0 8px black";
-    if (this.mediaQueue.length === 0) queueDiv.textContent = "";
   }
 
   playNextMedia() {
-    this.updateMediaQueueDisplay(); // Always update at the start
     if (this.mediaQueue.length === 0) {
       this.isPlaying = false;
       this.updateMediaQueueDisplay();
@@ -170,6 +194,8 @@ class WebSocketHandler {
     const { buffer, type } = this.mediaQueue.shift();
     const blob = new Blob([buffer], { type });
     const url = URL.createObjectURL(blob);
+
+    this.updateMediaQueueDisplay(); // Always update at the start
 
     if (this.callbacks.length > 0)
       for (let cb of this.callbacks) {
@@ -240,7 +266,7 @@ class WebSocketHandler {
           !oneSecondBeforeEndFired
         ) {
           oneSecondBeforeEndFired = true;
-          console.log(timeBeforeEnd, " seconds before video ends!");
+          // console.log(timeBeforeEnd, " seconds before video ends!");
           WS.events.emit("played");
           // document.body.removeChild(mediaElement);
           URL.revokeObjectURL(url);
