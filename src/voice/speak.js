@@ -17,7 +17,7 @@ import { runPowerShellAsAdmin } from "../utils/processRunner.js";
 import { getProcessing } from "../../index.js";
 import path from "path";
 import { fileURLToPath } from "url";
-import { ttsGradio } from "./tts-gradio.js";
+import { ttsGradio, xttsGradio } from "./ttsGradio.js";
 import { dreamtalkGradio } from "../image/dreamtalk-gradio.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name of the directory
@@ -95,6 +95,10 @@ export const setSpeakerId = (id) => {
 
 let video = process.env.VIDEO;
 
+export const getVideo = () => {
+  return video
+};
+
 export const setVideo = (val) => {
   video = val;
 };
@@ -139,7 +143,7 @@ sadTalkerProcess.events.on("done", async (data) => {
       }, 60 * 1000);
     });
   }
-  console.log(resolve);
+  // console.log(resolve);
   resolve?.tempfile?.delete();
   resolve?.resolve();
   console.timeEnd(resolve?.timeName);
@@ -156,10 +160,9 @@ export async function speak(text, speakerId = sourceId) {
         let timeName = `tts:${text}`;
         console.time(timeName);
         resolves.push({ resolve, text, timeName });
-        const data = await ttsGradio(`"${text}"`, lang, speakerWavPath);
-        console.log(data)
+        const data = await xttsGradio(`"${text}"`, lang, speakerWavPath);
         console.timeEnd(timeName);
-        // console.log("ttsGradio data", data); 
+        console.log("ttsGradio data", data); 
         const resultpath = data[0].path;
         console.log("resultpath", resultpath);
         setTimeout(async () => {
@@ -168,16 +171,16 @@ export async function speak(text, speakerId = sourceId) {
         }, 60 * 1000);
         if (!video && !process.env.MUTE) playAudio(resultpath);
         // Read the WAV file as a buffer
-        if (process.env.MUTE && !video && getProcessing())
-          fs.readFile(resultpath, (err, data) => {
-            if (err) {
-              console.error("\nError reading the WAV file:", err);
-              return;
-            }
-            console.log("\nSending WAV file...");
-            // Send the WAV file as binary data
-            sendToAll(data, true);
-          });
+        // if (process.env.MUTE && !video && getProcessing())
+        //   fs.readFile(resultpath, (err, data) => {
+        //     if (err) {
+        //       console.error("\nError reading the WAV file:", err);
+        //       return;
+        //     }
+        //     console.log("\nSending WAV file...");
+        //     // Send the WAV file as binary data
+        //     sendToAll(data, true);
+        //   });
         if (!video) return resolve();
         if (!getProcessing()) return resolve();
         timeName = `video:${text}`;

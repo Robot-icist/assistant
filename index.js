@@ -55,13 +55,14 @@ import {
 import { tunnel } from "./src/utils/tunnel.js";
 import "dotenv/config";
 import smartlife from "./src/automation/smartlife.js";
-import { whisper } from "./src/voice/whisper.js";
+import { whisper } from "./src/voice/whisperProcess.js";
 import { detect } from "tinyld";
 import { eld } from "eld";
 import { mapLanguageToCode } from "./src/utils/mapping.js";
 import { comfyClient, generateImage } from "./src/image/comfyui.js";
 import path from "path";
 import { fileURLToPath } from "url";
+import { xttsProcess } from "./src/voice/ttsProcess.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name of the directory
 
@@ -94,10 +95,15 @@ if (process.env.WHISPER) {
   whisper.start();
 }
 
+if(process.env.TTS){ 
+  xttsProcess.start();   
+}
+
 if(process.env.VIDEO && process.env.SADTALKER === "true"){ 
   sadTalkerProcess.start();   
 }
 
+runExecutableWithArgs("C:/Users/Gille/AppData/Local/Programs/@comfyorgcomfyui-electron/ComfyUI.exe", []);
 // preventSleep.enable();
 
 // Graceful shutdown on interrupt signal
@@ -264,7 +270,10 @@ export const logic = async (recognizedText, bytes = null, ws = null) => {
     );
     let device = devices.shift();
     console.log(devices, device);
-    let onOrOff =
+    if(!device) {
+      await ollamaChat(recognizedText, speak);
+    } else {
+      let onOrOff =
       recognizedText.includes("allume") ||
       recognizedText.includes("ouvre") ||
       recognizedText.includes("turn on") ||
@@ -273,8 +282,9 @@ export const logic = async (recognizedText, bytes = null, ws = null) => {
       device,
       "turnOnOff",
       "value",
-      device.dev_type == "scene" ? 1 : onOrOff ? 1 : 0
+      device?.dev_type == "scene" ? 1 : onOrOff ? 1 : 0
     );
+    }
   } else if (recognizedText.includes("vois") || recognizedText.includes("see"))
     await ollamaVision(recognizedText, speak, bytes);
   else if (recognizedText.includes("think") || recognizedText.includes("pense"))

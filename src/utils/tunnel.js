@@ -37,7 +37,7 @@ const makeLocalTunnel = async (port = 80, subdomain = "personalassistant") => {
 
 const pageKite = true;
 
-const subdomain = "personalia";
+const subdomain = "personai";
 
 export const tunnel = async () => {
   if (pageKite) {

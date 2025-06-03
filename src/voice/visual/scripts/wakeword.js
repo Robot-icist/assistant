@@ -55,6 +55,7 @@ const whisperCallback = async (err, text) => {
 export const processCallback = async (wakeword) => {
   console.log("Recognized WakeWord:", wakeword);
   changeColor("gold");
+  stopProcessing();
   const params = getParams();
   if (params.whisper) {
     await toggleRecording(whisperCallback);

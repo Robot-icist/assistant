@@ -9,6 +9,7 @@ import {
   startWakewordRecognition,
   stopWakewordRecognition,
 } from "./wakeword.js";
+import { stopProcessing } from "./main.js";
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -44,9 +45,12 @@ const params = {
   speaker: 1,
   video: false,
   google: false,
-  whisper: false,
+  whisper: true,
   alwaysOn: false,
   keepInMemory: false,
+  showVoiceFrequency: false,
+  voiceFrequencyThreshold: (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) ? 40 : 80,
+  voiceDurationThreshold: 1000,
 };
 
 export const getParams = () => params;
@@ -98,6 +102,7 @@ let audioContext; // = new (window.AudioContext || window.webkitAudioContext)();
 
 // Create an analyser node in the same audio context
 let analyser = { getByteFrequencyData: () => {} }; //= audioContext.createAnalyser();
+let analyserClone = { getByteFrequencyData: () => {} }; //= audioContext.createAnalyser();
 // analyser.fftSize = 256; // Set FFT size for frequency data
 // analyser.fftSize = 32; // Set FFT size for frequency data
 
@@ -133,8 +138,10 @@ navigator.mediaDevices
 
     // Create an analyser node in the same audio context
     analyser = audioContext.createAnalyser();
+    analyserClone = audioContext.createAnalyser();
     // analyser.fftSize = 256; // Set FFT size for frequency data
     analyser.fftSize = 32; // Set FFT size for frequency data
+    analyserClone.fftSize = 32; // Set FFT size for frequency data
     // Create a MediaStreamSource for the microphone input
     const microphone = audioContext.createMediaStreamSource(stream);
 
@@ -143,6 +150,7 @@ navigator.mediaDevices
 
     // Create a custom analyser for frequency data
     dataArray = new Uint8Array(analyser.frequencyBinCount);
+    dataArrayClone = new Uint8Array(analyserClone.frequencyBinCount);
   })
   .catch((error) => {
     console.error("Error accessing the microphone:", error);
@@ -156,6 +164,7 @@ navigator.mediaDevices
 
 // Create a custom analyser for frequency data
 let dataArray = []; // = new Uint8Array(analyser.frequencyBinCount);
+let dataArrayClone = []; // = new Uint8Array(analyser.frequencyBinCount);
 
 export const gui = new GUI();
 
@@ -302,9 +311,21 @@ assistantFolder.add(params, "alwaysOn").onChange(async (value) => {
   }
 });
 
-// assistantFolder.add(params, "keepInMemory").onChange(async (value) => {
-//   params.keepInMemory = value;
-// });
+assistantFolder.add(params, "showVoiceFrequency").onChange(async (value) => {
+  params.showVoiceFrequency = value;
+});
+
+assistantFolder.add(params, "voiceFrequencyThreshold", 0, 150, 10).onChange(async (value) => {
+  params.voiceFrequencyThreshold = value;
+});
+
+assistantFolder.add(params, "voiceDurationThreshold", 0, 2000, 100).onChange(async (value) => {
+  params.voiceDurationThreshold = value;
+});
+
+assistantFolder.add(params, "keepInMemory").onChange(async (value) => {
+  params.keepInMemory = value;
+});
 
 let mouseX = 0;
 let mouseY = 0;
@@ -389,42 +410,90 @@ export async function processWavBuffer(arrayBuffer) {
   mediaStream = mediaStreamDestination.stream; // Obtain the MediaStream
 
   // Connect nodes: source → analyser → destination
-  source.connect(analyser);
-  analyser.connect(mediaStreamDestination);
+  source.connect(analyserClone);
+  analyserClone.connect(mediaStreamDestination);
   // source.connect(audioContext.destination); // Connect to output (optional) to hear it
   let previousColor = color;
   source.onended = () => {
-    for (let track of microphoneStream.getAudioTracks()) {
-      track.enabled = true;
-    }
+    // for (let track of microphoneStream.getAudioTracks()) {
+    //   track.enabled = true;
+    // }
     changeColor(params.alwaysOn ? "gold" : previousColor);
   };
   // Start playing the audio
   source.start();
 
-  for (let track of microphoneStream.getAudioTracks()) {
-    track.enabled = false;
-  }
+  // for (let track of microphoneStream.getAudioTracks()) {
+  //   track.enabled = false;
+  // }
   changeColor("white");
 }
+
+let highFrequencyStartTime = 0;
+const HIGH_FREQUENCY_THRESHOLD = (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) ? 40 : 80;
+const DURATION_THRESHOLD = 1000; // 1 second in milliseconds
 
 function animate() {
   // Update frequency data
   analyser.getByteFrequencyData(dataArray);
+  analyserClone.getByteFrequencyData(dataArrayClone);
   let averageFrequency = 0;
   for (let i = 0; i < dataArray.length; i++) {
     averageFrequency += dataArray[i];
   }
   averageFrequency /= dataArray.length;
+  let averageFrequencyClone = 0;
+  for (let i = 0; i < dataArrayClone.length; i++) {
+    averageFrequencyClone += dataArrayClone[i];
+  }
+  averageFrequencyClone /= dataArrayClone.length;
+
+  let freqDisplay = document.getElementById('frequency-display');
+  
+  if(params.showVoiceFrequency){
+    if(!freqDisplay) {
+      // Create a div to display the frequency  
+      freqDisplay = document.createElement('div');
+      freqDisplay.id = 'frequency-display';
+      freqDisplay.style.position = 'fixed';
+      freqDisplay.style.top = '10px';
+      freqDisplay.style.left = '10px';
+      freqDisplay.style.color = 'white';
+      freqDisplay.style.fontFamily = 'monospace';
+      freqDisplay.style.fontSize = '14px';
+      freqDisplay.style.zIndex = '1000';
+      freqDisplay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+      freqDisplay.style.padding = '5px';
+      freqDisplay.style.borderRadius = '5px';
+      document.body.appendChild(freqDisplay);
+    }
+    // Update frequency display
+    freqDisplay.textContent = `Mic Freq: ${Math.round(averageFrequency)} | Process Freq: ${Math.round(averageFrequencyClone)}`;
+  }
+  else{
+    if(freqDisplay) freqDisplay.remove();
+  }
+
+  if (averageFrequency > params.voiceFrequencyThreshold) {
+    if (highFrequencyStartTime === 0) {
+      highFrequencyStartTime = Date.now();
+    } else if (Date.now() - highFrequencyStartTime >= params.voiceDurationThreshold) {
+      console.log("Stopping processing due to sustained high frequency:", averageFrequency);
+      stopProcessing();
+      highFrequencyStartTime = 0; // Reset the timer
+    }
+  } else {
+    highFrequencyStartTime = 0; // Reset the timer if frequency drops below threshold
+  }
 
   camera.position.x += (mouseX - camera.position.x) * 0.05;
   camera.position.y += (-mouseY - camera.position.y) * 0.5;
   camera.lookAt(scene.position);
 
   uniforms.u_time.value = clock.getElapsedTime();
-  uniforms.u_frequency.value = averageFrequency;
+  uniforms.u_frequency.value = averageFrequency > averageFrequencyClone ? averageFrequency : averageFrequencyClone;
 
-  bloomPass.strength = 0.2 + averageFrequency / 1000;
+  bloomPass.strength = 0.2 + (averageFrequency > averageFrequencyClone ? averageFrequency : averageFrequencyClone) / 1000;
 
   bloomComposer.render();
   requestAnimationFrame(animate);
@@ -456,4 +525,4 @@ WS.addCallback((data, isBinary, type) => {
   changeColor(value);
 });
 
-changeColor("deepskyblue");
+params.alwaysOn ? changeColor("gold") : changeColor("deepskyblue");

@@ -108,7 +108,7 @@ let callback = null;
 // Add a flag to prevent multiple connection attempts.
 let isConnecting = false;
 
-function setupWebSocket() {
+function setupWhisperWebSocket() {
   return new Promise((resolve, reject) => {
     // Check if a connection is already in progress or if a websocket exists
     if (isConnecting || websocket) {
@@ -128,8 +128,13 @@ function setupWebSocket() {
     }
 
     websocket.onopen = () => {
-      console.log("Connected to server.");
+      console.log("Connected to Whisper Server.");
       isConnecting = false; // Reset the flag on successful connection
+      if (isRecording) {
+        startRecording();
+      } else {
+        console.warn("WebSocket opened but recording is not started.");
+      }
       resolve();
     };
 
@@ -141,22 +146,24 @@ function setupWebSocket() {
       if (userClosing) return (userClosing = false);
       userClosing = false;
       isConnecting = false;
-      stopRecording();
+      // stopRecording();
       // Reconnect logic:  Wait and then attempt reconnection
       setTimeout(async () => {
         console.log("Attempting to reconnect...");
-        await toggleRecording(callback);
+        // await toggleRecording(callback);
+        await setupWhisperWebSocket();
       }, 1000);
     };
 
     websocket.onerror = async (error) => {
       console.error("Error connecting to WebSocket:", error);
       isConnecting = false;
-      stopRecording(); // Stop recording on close
+      // stopRecording(); // Stop recording on close
       // reject(new Error("Error connecting to WebSocket"));
       setTimeout(async () => {
         console.log("Attempting to reconnect...");
-        await toggleRecording(callback);
+        // await toggleRecording(callback);
+        await setupWhisperWebSocket();
       }, 1000);
     };
 
@@ -214,7 +221,7 @@ function setupWebSocket() {
           if (buffer_transcription == "")
             timeout = setTimeout(async () => {
               if (callback) callback(null, textContent);
-            }, 1500);
+            }, 1000);
         }
       });
       hideLLMText();
@@ -274,7 +281,7 @@ async function toggleRecording(cb) {
   callback = cb;
   if (!isRecording) {
     try {
-      await setupWebSocket();
+      await setupWhisperWebSocket();
       if (websocket && websocket.readyState === WebSocket.OPEN) {
         await startRecording();
       } else {

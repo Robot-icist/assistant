@@ -1,0 +1,265 @@
+import websockets
+import gradio as gr
+import torch
+from TTS.api import TTS
+import os
+import sys
+import gc
+import warnings
+import io
+import tempfile
+
+import time
+import torchaudio
+from TTS.tts.configs.xtts_config import XttsConfig
+from TTS.tts.models.xtts import Xtts
+
+import numpy as np
+import asyncio
+import json # if you send json
+
+import threading
+
+client = None
+
+previous_audio_path = None
+gpt_cond_latent = None 
+speaker_embedding = None
+
+# Set UTF-8 encoding for standard input and output (good practice, though less critical for Gradio)
+if os.name != 'nt': # Not strictly necessary on Windows for Gradio, but good for general Python scripts
+    sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
+warnings.filterwarnings("ignore")
+
+# --- Global Model Initialization ---
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Using device: {device}", flush=True)
+
+# if device == "cuda":
+#     print("Setting CUDA memory fraction...")
+#     try:
+#         # Attempt to set memory fraction, might fail if CUDA context already initialized elsewhere
+#         torch.cuda.set_per_process_memory_fraction(0.8, device=0) # Adjusted fraction
+#     except RuntimeError as e:
+#         print(f"Could not set CUDA memory fraction (may be already initialized): {e}")
+
+
+print("Loading TTS model (this may take a while)...")
+try:
+    # Using XTTSv2 as it's multilingual and good for voice cloning
+    # tts_model = TTS("tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=True).to(device)
+
+    #  print("Loading model...", flush=True)
+    config = XttsConfig()
+    config.load_json("C:/Users/Gille/AppData/Local/tts/tts_models--multilingual--multi-dataset--xtts_v2/config.json")
+    tts_model = Xtts.init_from_config(config)
+    tts_model.load_checkpoint(config, checkpoint_dir="C:/Users/Gille/AppData/Local/tts/tts_models--multilingual--multi-dataset--xtts_v2/", use_deepspeed=False)
+    tts_model.cuda()
+
+    print("TTS model loaded successfully!", flush=True)
+except Exception as e:
+    print(f"Error loading TTS model: {e}")
+    print("Please ensure you have the model files downloaded or a working internet connection for automatic download.")
+    print("You might need to run `tts --list_models` and `tts --model_name \"tts_models/multilingual/multi-dataset/xtts_v2\" --progress_bar True` once from your terminal to download the model.")
+    sys.exit(1)
+
+
+# XTTSv2 supported languages (from official CoquiTTS docs/examples)
+# You can update this list if you know more are well-supported by your specific XTTSv2 checkpoint
+XTTS_LANGUAGES = {
+    "English": "en",
+    "Spanish": "es",
+    "French": "fr",
+    "German": "de",
+    "Italian": "it",
+    "Portuguese": "pt",
+    "Polish": "pl",
+    "Turkish": "tr",
+    "Russian": "ru",
+    "Dutch": "nl",
+    "Czech": "cs",
+    "Arabic": "ar",
+    "Chinese (Simplified)": "zh-cn",
+    "Japanese": "ja",
+    "Hungarian": "hu",
+    "Korean": "ko",
+    "Hindi": "hi" # Added Hindi as per common XTTS support
+}
+LANGUAGE_CHOICES = list(XTTS_LANGUAGES.values())
+
+def synthesize(text_input, speaker_wav_path, language_name):
+    if not text_input:
+        return None, "Error: Text input is empty."
+    if not speaker_wav_path:
+        return None, "Error: Speaker WAV file not provided."
+    if not os.path.exists(speaker_wav_path):
+        return None, f"Error: Speaker WAV file not found at {speaker_wav_path}."
+    if not language_name:
+        return None, "Error: Language not selected."
+
+    # language_code = XTTS_LANGUAGES.get(language_name)
+    language_code = language_name
+    if not language_code:
+        return None, f"Error: Invalid language selected: {language_name}."
+
+    status_message = ""
+    output_audio_path = None
+
+    global gpt_cond_latent, speaker_embedding, previous_audio_path 
+
+    if(previous_audio_path is None or speaker_wav_path != previous_audio_path):
+        print("Computing speaker latents...", flush=True)
+        previous_audio_path = speaker_wav_path
+        gpt_cond_latent, speaker_embedding = tts_model.get_conditioning_latents(audio_path=["wavs/pierrenineytrim.wav"])
+
+    # print("Inference...", flush=True)
+
+    try:
+        # Create a temporary file for the output, Gradio will handle serving it
+        # Ensure the suffix is .wav as TTS library expects it
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav_file:
+            output_file_path = tmp_wav_file.name
+        
+        print(f"Synthesizing: Text='{text_input[:50]}...', Speaker WAV='{speaker_wav_path}', Lang='{language_code}'", flush=True)
+
+        # Clean GPU cache before TTS
+        if device == "cuda":
+            torch.cuda.empty_cache()
+        gc.collect()
+
+        # tts_model.tts_to_file(
+        #     text=text_input,
+        #     speaker_wav=speaker_wav_path,
+        #     language=language_code,
+        #     file_path=output_file_path, 
+        # )
+
+        t0 = time.time()
+        chunks = tts_model.inference_stream(
+        text_input,
+        language_code,
+        gpt_cond_latent,
+        speaker_embedding
+        )
+
+        wav_chuncks = []
+        for i, chunk in enumerate(chunks):
+            if i == 0:
+                print(f"Time to first chunck: {time.time() - t0}", flush=True)
+            print(f"Received chunk {i} of audio length {chunk.shape[-1]}", flush=True)
+            print(chunk, flush=True)
+            # Convert tensor to NumPy array
+            audio_array = chunk.cpu().numpy().flatten()
+            
+            # # Create a WAV buffer from the audio array
+            # buffer = io.BytesIO()
+            # torchaudio.save(buffer, torch.tensor(audio_array).unsqueeze(0), 24000, format="wav")
+            # wav_data = buffer.getvalue()
+
+            # asyncio.run(async_logic(wav_data))
+
+            wav_chuncks.append(chunk)
+
+        wav = torch.cat(wav_chuncks, dim=0)
+        buffer = io.BytesIO()
+        # torchaudio.save(output_file_path, wav.squeeze().unsqueeze(0).cpu(), 24000)
+        torchaudio.save(buffer, wav.squeeze().unsqueeze(0).cpu(), 24000, format="wav")
+        wav_data = buffer.getvalue()
+        asyncio.run(async_logic(wav_data))
+
+        output_audio_path = output_file_path
+        status_message = f"Audio generated successfully! Saved to temporary path: {output_audio_path}"
+        print(status_message, flush=True)
+
+    except Exception as e:
+        error_msg = f"Error during TTS synthesis: {e}"
+        print(error_msg, flush=True)
+        status_message = error_msg
+        if output_audio_path and os.path.exists(output_audio_path):
+            os.remove(output_audio_path) # Clean up temp file if error occurred after creation
+        output_audio_path = None
+    finally:
+        # Clean GPU cache after TTS
+        if device == "cuda":
+            torch.cuda.empty_cache()
+        gc.collect()
+        
+    return output_audio_path, status_message
+
+# --- Gradio Interface Definition ---
+with gr.Blocks(theme=gr.themes.Soft()) as app:
+    gr.Markdown("# 🐸 Coqui TTS XTTSv2 Gradio Interface")
+    gr.Markdown(
+        "Enter text, upload a reference speaker WAV file (clear audio, 5-30 seconds long is ideal, mono 16-bit 22050Hz or 24000Hz recommended), "
+        "and select the language of the text."
+    )
+    
+    with gr.Row():
+        with gr.Column(scale=2):
+            text_input = gr.Textbox(
+                label="Text to Synthesize",
+                placeholder="Type or paste your text here...",
+                lines=4
+            )
+            speaker_wav_input = gr.Audio(
+                label="Speaker Reference WAV",
+                type="filepath", # Important: TTS library needs a file path
+                # file_types=[".wav"] # This doesn't seem to work reliably for gr.Audio, user needs to ensure it's WAV
+            )
+            language_dropdown = gr.Dropdown(
+                label="Language of Text",
+                choices=LANGUAGE_CHOICES,
+                value="English" # Default language
+            )
+            submit_button = gr.Button("Synthesize Audio", variant="primary")
+        
+        with gr.Column(scale=1):
+            audio_output = gr.Audio(
+                label="Synthesized Audio Output",
+                type="filepath" # To play/download the generated file
+            )
+            status_output = gr.Textbox(
+                label="Status / Log",
+                lines=5,
+                interactive=False # Read-only
+            )
+
+    submit_button.click(
+        fn=synthesize,
+        inputs=[text_input, speaker_wav_input, language_dropdown],
+        outputs=[audio_output, status_output]
+    )
+    
+    gr.Examples(
+        examples=[
+            ["Hello, this is a test of the text to speech system.", "wavs/scarlett.wav", "en"],
+            ["Bonjour, ceci est un test du système de synthèse vocale.", "wavs/pierrenineytrim.wav", "fr"],
+            ["Hola, esta es una prueba del sistema de texto a voz.", "wavs/scarlett.wav", "es"],
+        ],
+        inputs=[text_input, speaker_wav_input, language_dropdown],
+        outputs=[audio_output, status_output],
+        fn=synthesize,
+        cache_examples=False # Set to True if you want to pre-compute and cache example outputs
+    )
+    # Add a note about example WAV files
+    gr.Markdown(
+        "Note: For the examples to work, you'll need to create an `examples` folder in the same directory "
+        "as this script and place `female_voice_sample.wav` and `male_voice_sample.wav` (or your own samples) in it."
+    )
+
+
+async def async_logic(data) :
+    global client 
+    client = await websockets.connect("ws://localhost:80")
+    if(data is not None):
+        await client.send(data)
+
+if __name__ == "__main__":
+    print("Launching Gradio app...", flush=True)
+    asyncio.run(async_logic(None))
+    # You can share the app by setting share=True (requires internet)
+    # app.launch(share=True) 
+    app.launch()
