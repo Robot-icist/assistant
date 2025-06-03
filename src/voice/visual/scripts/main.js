@@ -179,6 +179,7 @@ window.addEventListener("load", () => {
     WS.mediaQueue = [];
     stopPlaying();
     if (!loading) hideStopButton();
+    // changeColor(getParams().alwaysOn ? "gold" : "deepskyblue");
   });
   document.getElementsByTagName("canvas")[0].addEventListener("click", () => {
     stopPlaying();

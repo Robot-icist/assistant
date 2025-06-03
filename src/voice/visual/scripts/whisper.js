@@ -111,7 +111,7 @@ let isConnecting = false;
 function setupWhisperWebSocket() {
   return new Promise((resolve, reject) => {
     // Check if a connection is already in progress or if a websocket exists
-    if (isConnecting || websocket) {
+    if (websocket) {
       console.log("WebSocket connection already in progress or exists.");
       return resolve(); // Resolve immediately if connecting or connected
     }
@@ -124,6 +124,11 @@ function setupWhisperWebSocket() {
       console.error("Invalid WebSocket URL:", error);
       isConnecting = false; // Reset the flag on error
       // reject(error);
+      setTimeout(async () => {
+        console.log("Attempting to reconnect...");
+        // await toggleRecording(callback);
+        await setupWhisperWebSocket();
+      }, 1000);
       return;
     }
 
@@ -221,7 +226,7 @@ function setupWhisperWebSocket() {
           if (buffer_transcription == "")
             timeout = setTimeout(async () => {
               if (callback) callback(null, textContent);
-            }, 1000);
+            }, 750);
         }
       });
       hideLLMText();

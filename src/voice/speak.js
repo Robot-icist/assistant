@@ -162,7 +162,7 @@ export async function speak(text, speakerId = sourceId) {
         resolves.push({ resolve, text, timeName });
         const data = await xttsGradio(`"${text}"`, lang, speakerWavPath);
         console.timeEnd(timeName);
-        console.log("ttsGradio data", data); 
+        // console.log("ttsGradio data", data); 
         const resultpath = data[0].path;
         console.log("resultpath", resultpath);
         setTimeout(async () => {
@@ -170,6 +170,7 @@ export async function speak(text, speakerId = sourceId) {
           console.log("Temporary converted file deleted: ", resultpath);
         }, 60 * 1000);
         if (!video && !process.env.MUTE) playAudio(resultpath);
+        // obsolete part as now xtts sends directly to the websocket
         // Read the WAV file as a buffer
         // if (process.env.MUTE && !video && getProcessing())
         //   fs.readFile(resultpath, (err, data) => {

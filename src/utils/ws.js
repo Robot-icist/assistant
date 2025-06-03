@@ -1,5 +1,5 @@
 import WebSocket, { WebSocketServer } from "ws";
-import { logic } from "../../index.js";
+import { getProcessing, logic } from "../../index.js";
 import {
   getLang,
   getVideo,
@@ -45,7 +45,8 @@ export const startWs = () => {
 
     ws.on("message", async function message(data, isBinary) {
       try {
-        console.log("ws received: ", data.toString(), "isBinary: ", isBinary, "isWav: ", isWav(data), "isMp4: ", isMp4(data), "isImage: ", isImage(data));
+        // console.log(data.toString());
+        console.log("ws received isBinary: ", isBinary, "isWav: ", isWav(data), "isMp4: ", isMp4(data), "isImage: ", isImage(data));
         console.log(typeof data);
         console.log("url:", req.url);
         if (!isBinary) {
@@ -71,10 +72,10 @@ export const startWs = () => {
             const objectsBuffer = await detect_objects_on_image(faceBuffer);
             sendToAll(objectsBuffer, true);
           } else
-          if(isWav(data) && !getVideo()) {
+          if(isWav(data) && !getVideo() && getProcessing()) {
             sendToAll(data, true);
           }
-          else if(isImage(data))
+          else if(isImage(data) &&  getProcessing())
             await logic(
               getLang() == "fr"
                 ? "Ton seul et unique but est de decrire ce que tu vois dans cette image rapidement et concentre toi sur ça et rien d'autre"

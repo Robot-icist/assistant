@@ -90,7 +90,43 @@ XTTS_LANGUAGES = {
 }
 LANGUAGE_CHOICES = list(XTTS_LANGUAGES.values())
 
+# Global configurations
+CHUNK_UPLOAD_FREQUENCY = 1  # Initial frequency for sending chunks
+
+# Add a global variable to track the last synthesis time
+last_synthesis_time = time.time()
+
+# Function to reset the chunk upload frequency
+def reset_chunk_upload_frequency():
+    global CHUNK_UPLOAD_FREQUENCY
+    CHUNK_UPLOAD_FREQUENCY = 1
+
+# Function to step up the chunk upload frequency
+def step_up_chunk_upload_frequency():
+    global CHUNK_UPLOAD_FREQUENCY
+    CHUNK_UPLOAD_FREQUENCY = CHUNK_UPLOAD_FREQUENCY * 2
+
+def concatenate_chunks(chunks_list):
+    # Concatenate chunks and convert to audio data
+    concatenated = torch.cat(chunks_list, dim=0)
+    buffer = io.BytesIO()
+    torchaudio.save(buffer, concatenated.squeeze().unsqueeze(0).cpu(), 24000, format="wav")
+    return buffer.getvalue()  # Return the raw bytes of the concatenated audio
+
+# Function to reset chunk upload frequency after inactivity
+def reset_frequency_after_inactivity(seconds=5):
+    global last_synthesis_time, CHUNK_UPLOAD_FREQUENCY
+    if time.time() - last_synthesis_time > seconds:  # Reset after 5 seconds of inactivity
+        reset_chunk_upload_frequency()
+
 def synthesize(text_input, speaker_wav_path, language_name):
+    print("CHUNK_UPLOAD_FREQUENCY", flush=True)
+    print(CHUNK_UPLOAD_FREQUENCY, flush=True)
+    global last_synthesis_time
+
+    # Update the last synthesis time
+    last_synthesis_time = time.time()
+
     if not text_input:
         return None, "Error: Text input is empty."
     if not speaker_wav_path:
@@ -99,6 +135,9 @@ def synthesize(text_input, speaker_wav_path, language_name):
         return None, f"Error: Speaker WAV file not found at {speaker_wav_path}."
     if not language_name:
         return None, "Error: Language not selected."
+
+    # # Reset chunk upload frequency for a new request
+    # reset_chunk_upload_frequency()
 
     # language_code = XTTS_LANGUAGES.get(language_name)
     language_code = language_name
@@ -113,7 +152,7 @@ def synthesize(text_input, speaker_wav_path, language_name):
     if(previous_audio_path is None or speaker_wav_path != previous_audio_path):
         print("Computing speaker latents...", flush=True)
         previous_audio_path = speaker_wav_path
-        gpt_cond_latent, speaker_embedding = tts_model.get_conditioning_latents(audio_path=["wavs/pierrenineytrim.wav"])
+        gpt_cond_latent, speaker_embedding = tts_model.get_conditioning_latents(audio_path=[speaker_wav_path])
 
     # print("Inference...", flush=True)
 
@@ -122,10 +161,9 @@ def synthesize(text_input, speaker_wav_path, language_name):
         # Ensure the suffix is .wav as TTS library expects it
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav_file:
             output_file_path = tmp_wav_file.name
-        
+
         print(f"Synthesizing: Text='{text_input[:50]}...', Speaker WAV='{speaker_wav_path}', Lang='{language_code}'", flush=True)
 
-        # Clean GPU cache before TTS
         if device == "cuda":
             torch.cuda.empty_cache()
         gc.collect()
@@ -139,36 +177,52 @@ def synthesize(text_input, speaker_wav_path, language_name):
 
         t0 = time.time()
         chunks = tts_model.inference_stream(
-        text_input,
-        language_code,
-        gpt_cond_latent,
-        speaker_embedding
+            text_input,
+            language_code,
+            gpt_cond_latent,
+            speaker_embedding
         )
 
-        wav_chuncks = []
+        wav_chunks = []
+        chunks_to_send = []
         for i, chunk in enumerate(chunks):
             if i == 0:
                 print(f"Time to first chunck: {time.time() - t0}", flush=True)
+                # # Send first chunk immediately
+                # # wav_data = concatenate_chunks([chunk])
+                # # asyncio.run(async_logic(wav_data))
+                # chunks_to_send = []  # Reset accumulator
+                # chunks_to_send.append(chunk) 
+            # else:
+            #     chunks_to_send.append(chunk)
+            #     # Send accumulated chunks every CHUNK_UPLOAD_FREQUENCY iterations after the first chunk
+            #     if (i + 1) % CHUNK_UPLOAD_FREQUENCY == 0 and chunks_to_send:
+            #         wav_data = concatenate_chunks(chunks_to_send)
+            #         asyncio.run(async_logic(wav_data))
+            #         chunks_to_send = []  # Reset accumulator after sending
+            #         step_up_chunk_upload_frequency()  # Step up the frequency
+
             print(f"Received chunk {i} of audio length {chunk.shape[-1]}", flush=True)
-            print(chunk, flush=True)
-            # Convert tensor to NumPy array
-            audio_array = chunk.cpu().numpy().flatten()
-            
-            # # Create a WAV buffer from the audio array
-            # buffer = io.BytesIO()
-            # torchaudio.save(buffer, torch.tensor(audio_array).unsqueeze(0), 24000, format="wav")
-            # wav_data = buffer.getvalue()
+            wav_chunks.append(chunk)
 
-            # asyncio.run(async_logic(wav_data))
+        # # Send any remaining chunks
+        # if chunks_to_send:
+        #     wav_data = concatenate_chunks(chunks_to_send)
+        #     asyncio.run(async_logic(wav_data))
 
-            wav_chuncks.append(chunk)
-
-        wav = torch.cat(wav_chuncks, dim=0)
-        buffer = io.BytesIO()
-        # torchaudio.save(output_file_path, wav.squeeze().unsqueeze(0).cpu(), 24000)
-        torchaudio.save(buffer, wav.squeeze().unsqueeze(0).cpu(), 24000, format="wav")
-        wav_data = buffer.getvalue()
+        
+        wav_data = concatenate_chunks(wav_chunks)
         asyncio.run(async_logic(wav_data))
+
+        #save to file needed for video generation
+        wav = torch.cat(wav_chunks, dim=0)
+        torchaudio.save(output_file_path, wav.squeeze().unsqueeze(0).cpu(), 24000)
+
+        ##save to buffer and send to websocket
+        # buffer = io.BytesIO()
+        # torchaudio.save(buffer, wav.squeeze().unsqueeze(0).cpu(), 24000, format="wav")
+        # wav_data = buffer.getvalue()
+        # asyncio.run(async_logic(wav_data))
 
         output_audio_path = output_file_path
         status_message = f"Audio generated successfully! Saved to temporary path: {output_audio_path}"
@@ -182,11 +236,10 @@ def synthesize(text_input, speaker_wav_path, language_name):
             os.remove(output_audio_path) # Clean up temp file if error occurred after creation
         output_audio_path = None
     finally:
-        # Clean GPU cache after TTS
         if device == "cuda":
             torch.cuda.empty_cache()
         gc.collect()
-        
+
     return output_audio_path, status_message
 
 # --- Gradio Interface Definition ---
@@ -246,7 +299,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as app:
     )
     # Add a note about example WAV files
     gr.Markdown(
-        "Note: For the examples to work, you'll need to create an `examples` folder in the same directory "
+        "Note: For the examples to work, you'll need to create an `wavs` folder in the same directory "
         "as this script and place `female_voice_sample.wav` and `male_voice_sample.wav` (or your own samples) in it."
     )
 
@@ -256,6 +309,15 @@ async def async_logic(data) :
     client = await websockets.connect("ws://localhost:80")
     if(data is not None):
         await client.send(data)
+
+# Define a proper function for periodic reset
+def periodic_reset():
+    while True:
+        time.sleep(5)
+        reset_frequency_after_inactivity(5)
+
+# Start the thread with the periodic reset function
+threading.Thread(target=periodic_reset, daemon=True).start()
 
 if __name__ == "__main__":
     print("Launching Gradio app...", flush=True)

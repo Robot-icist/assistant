@@ -430,8 +430,6 @@ export async function processWavBuffer(arrayBuffer) {
 }
 
 let highFrequencyStartTime = 0;
-const HIGH_FREQUENCY_THRESHOLD = (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) ? 40 : 80;
-const DURATION_THRESHOLD = 1000; // 1 second in milliseconds
 
 function animate() {
   // Update frequency data
