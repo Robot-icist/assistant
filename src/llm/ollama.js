@@ -5,15 +5,15 @@ import {
   mapGlobalKeyToNutKey,
   mapXToScreen,
   mapYToScreen,
-} from "../utils/mapping.js";
+} from "../global/mapping.js";
 import { Ollama } from "ollama";
-import { LOG } from "../utils/log.js";
-import { rl } from "../utils/rl.js";
+import { LOG } from "../global/log.js";
+import { rl } from "../global/rl.js";
 import camera, { takePictureJpeg } from "../image/camera.js";
 import { getHotword } from "../voice/hotword.js";
 import { getEvil } from "../../index.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { sendToAll } from "../utils/ws.js";
+import { sendToAll } from "../global/ws.js";
 import { getLang } from "../voice/speak.js";
 import "dotenv/config";
 import path from "path";

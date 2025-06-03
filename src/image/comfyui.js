@@ -2,7 +2,7 @@ import { Client } from "@stable-canvas/comfyui-client";
 import WebSocket from "ws";
 import fetch from "node-fetch";
 import axios from "axios";
-import { sendToAll } from "../utils/ws.js";
+import { sendToAll } from "../global/ws.js";
 
 const payload = {prompt: {
     "3": {

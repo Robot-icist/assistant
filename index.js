@@ -30,11 +30,11 @@ import {
   registerFace,
   registerHotword,
   registerVoiceClone,
-} from "./src/utils/helper.js";
+} from "./src/global/helper.js";
 // import { generateImage, generateVideo } from "./src/image/stable-diffusion.js";
 
 import { sadTalkerProcess } from "./src/image/sadTalkerProcess.js";
-import { rl } from "./src/utils/rl.js";
+import { rl } from "./src/global/rl.js";
 import {
   audioQueue,
   getIsAudioProcessing,
@@ -45,20 +45,20 @@ import {
   setCurrentRequestWs,
   startWs,
   wss,
-} from "./src/utils/ws.js";
+} from "./src/global/ws.js";
 import { sleep } from "@nut-tree-fork/nut-js";
 // import preventSleep from "node-prevent-sleep";
 import {
   runExecutableWithArgs,
   runPowerShellAsAdmin,
-} from "./src/utils/processRunner.js";
-import { tunnel } from "./src/utils/tunnel.js";
+} from "./src/global/processRunner.js";
+import { tunnel } from "./src/global/tunnel.js";
 import "dotenv/config";
 import smartlife from "./src/automation/smartlife.js";
 import { whisper } from "./src/voice/whisperProcess.js";
 import { detect } from "tinyld";
 import { eld } from "eld";
-import { mapLanguageToCode } from "./src/utils/mapping.js";
+import { mapLanguageToCode } from "./src/global/mapping.js";
 import { comfyClient, generateImage } from "./src/image/comfyui.js";
 import path from "path";
 import { fileURLToPath } from "url";

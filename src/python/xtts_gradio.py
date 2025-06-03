@@ -49,7 +49,7 @@ print(f"Using device: {device}", flush=True)
 
 print("Loading TTS model (this may take a while)...")
 try:
-    # Using XTTSv2 as it's multilingual and good for voice cloning
+    # # Using XTTSv2 as it's multilingual and good for voice cloning
     # tts_model = TTS("tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=True).to(device)
 
     #  print("Loading model...", flush=True)
@@ -104,13 +104,13 @@ def reset_chunk_upload_frequency():
 # Function to step up the chunk upload frequency
 def step_up_chunk_upload_frequency():
     global CHUNK_UPLOAD_FREQUENCY
-    CHUNK_UPLOAD_FREQUENCY = CHUNK_UPLOAD_FREQUENCY * 2
+    CHUNK_UPLOAD_FREQUENCY = CHUNK_UPLOAD_FREQUENCY * 3
 
 def concatenate_chunks(chunks_list):
     # Concatenate chunks and convert to audio data
     concatenated = torch.cat(chunks_list, dim=0)
     buffer = io.BytesIO()
-    torchaudio.save(buffer, concatenated.squeeze().unsqueeze(0).cpu(), 24000, format="wav")
+    torchaudio.save(buffer, concatenated.squeeze().unsqueeze(0).cpu(), 24000, format="wav", encoding="PCM_S", bits_per_sample=16)
     return buffer.getvalue()  # Return the raw bytes of the concatenated audio
 
 # Function to reset chunk upload frequency after inactivity
@@ -189,40 +189,34 @@ def synthesize(text_input, speaker_wav_path, language_name):
             if i == 0:
                 print(f"Time to first chunck: {time.time() - t0}", flush=True)
                 # # Send first chunk immediately
-                # # wav_data = concatenate_chunks([chunk])
-                # # asyncio.run(async_logic(wav_data))
-                # chunks_to_send = []  # Reset accumulator
-                # chunks_to_send.append(chunk) 
-            # else:
-            #     chunks_to_send.append(chunk)
-            #     # Send accumulated chunks every CHUNK_UPLOAD_FREQUENCY iterations after the first chunk
-            #     if (i + 1) % CHUNK_UPLOAD_FREQUENCY == 0 and chunks_to_send:
-            #         wav_data = concatenate_chunks(chunks_to_send)
-            #         asyncio.run(async_logic(wav_data))
-            #         chunks_to_send = []  # Reset accumulator after sending
-            #         step_up_chunk_upload_frequency()  # Step up the frequency
+                # wav_data = concatenate_chunks([chunk])
+                # asyncio.run(async_logic(wav_data))
+                chunks_to_send = []  # Reset accumulator
+                chunks_to_send.append(chunk) 
+            else:
+                chunks_to_send.append(chunk)
+                # Send accumulated chunks every CHUNK_UPLOAD_FREQUENCY iterations after the first chunk
+                if (i + 1) % CHUNK_UPLOAD_FREQUENCY == 0 and chunks_to_send:
+                    wav_data = concatenate_chunks(chunks_to_send)
+                    asyncio.run(async_logic(wav_data))
+                    chunks_to_send = []  # Reset accumulator after sending
+                    step_up_chunk_upload_frequency()  # Step up the frequency
 
             print(f"Received chunk {i} of audio length {chunk.shape[-1]}", flush=True)
             wav_chunks.append(chunk)
 
-        # # Send any remaining chunks
-        # if chunks_to_send:
-        #     wav_data = concatenate_chunks(chunks_to_send)
-        #     asyncio.run(async_logic(wav_data))
+        # Send any remaining chunks
+        if chunks_to_send:
+            wav_data = concatenate_chunks(chunks_to_send)
+            asyncio.run(async_logic(wav_data))
 
-        
-        wav_data = concatenate_chunks(wav_chunks)
-        asyncio.run(async_logic(wav_data))
-
-        #save to file needed for video generation
-        wav = torch.cat(wav_chunks, dim=0)
-        torchaudio.save(output_file_path, wav.squeeze().unsqueeze(0).cpu(), 24000)
-
-        ##save to buffer and send to websocket
-        # buffer = io.BytesIO()
-        # torchaudio.save(buffer, wav.squeeze().unsqueeze(0).cpu(), 24000, format="wav")
-        # wav_data = buffer.getvalue()
+        # #send complete audio directly by websocket
+        # wav_data = concatenate_chunks(wav_chunks)
         # asyncio.run(async_logic(wav_data))
+
+        # #save to file previously needed for video generation
+        # wav = torch.cat(wav_chunks, dim=0)
+        # torchaudio.save(output_file_path, wav.squeeze().unsqueeze(0).cpu(), 24000, encoding="PCM_S", bits_per_sample=16)
 
         output_audio_path = output_file_path
         status_message = f"Audio generated successfully! Saved to temporary path: {output_audio_path}"

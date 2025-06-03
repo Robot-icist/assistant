@@ -3,7 +3,7 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { createCanvas, loadImage } from "canvas";
 import sharp from "sharp";
-import { generateColorFromString } from "../utils/mapping.js";
+import { generateColorFromString } from "../global/mapping.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // Get the directory name
 

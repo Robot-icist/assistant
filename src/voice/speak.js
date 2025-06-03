@@ -1,10 +1,10 @@
 import say from "say";
-import { LOG } from "../utils/log.js";
+import { LOG } from "../global/log.js";
 import { exec } from "child_process";
 import fs from "fs";
 import { sleep } from "@nut-tree-fork/nut-js";
 import { sadTalkerProcess } from "../image/sadTalkerProcess.js";
-import { sendToAll } from "../../src/utils/ws.js";
+import { sendToAll } from "../global/ws.js";
 import { playAudio } from "../audio/main.js";
 import {
   convertToH264,
@@ -12,8 +12,8 @@ import {
   deleteDir,
   createTempFileName,
   deleteTempDir,
-} from "../utils/helper.js";
-import { runPowerShellAsAdmin } from "../utils/processRunner.js";
+} from "../global/helper.js";
+import { runPowerShellAsAdmin } from "../global/processRunner.js";
 import { getProcessing } from "../../index.js";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -105,6 +105,7 @@ export const setVideo = (val) => {
 
 let resolves = [];
 
+export const getResolves = () => resolves;
 export const setResolves = (r) => resolves = r;
 
 const resultsPath = path.resolve(__dirname, "../python/sadtalker/results");
@@ -170,8 +171,8 @@ export async function speak(text, speakerId = sourceId) {
           console.log("Temporary converted file deleted: ", resultpath);
         }, 60 * 1000);
         if (!video && !process.env.MUTE) playAudio(resultpath);
-        // obsolete part as now xtts sends directly to the websocket
-        // Read the WAV file as a buffer
+        // // obsolete part as now xtts sends directly to the websocket
+        // // Read the WAV file as a buffer
         // if (process.env.MUTE && !video && getProcessing())
         //   fs.readFile(resultpath, (err, data) => {
         //     if (err) {
@@ -183,20 +184,47 @@ export async function speak(text, speakerId = sourceId) {
         //     sendToAll(data, true);
         //   });
         if (!video) return resolve();
-        if (!getProcessing()) return resolve();
-        timeName = `video:${text}`;
+        if (!getProcessing() && !video) return resolve();
+        // await speakWithVideo(text, resultpath);
+      } else {
+        say.getInstalledVoices(console.log);
+        let voice = lang == "fr" ? "Microsoft Paul" : "Microsoft David";
+        say.speak(removeDiacritics(text), voice, 1.0, (err) => {
+          if (err) {
+            return reject(err);
+          }
+          console.log(
+            "\nSpokenText:",
+            text
+            // text.normalize("NFC"),
+            // text.normalize("NFD")
+          );
+          return resolve();
+        });
+      }
+    } catch (error) {
+      console.log(error);
+      resolve();
+    }
+  });
+}
+
+export async function speakWithVideo(text, resultpath, buffer = null) {
+        let timeName = `video:${text}`;
         console.time(timeName);
-        const fileBuffer = await fs.promises.readFile(resultpath);
+        const fileBuffer = buffer ? buffer : await fs.promises.readFile(resultpath);
         const tempfile = await createTempFileFromBuffer(fileBuffer, "wav");
         if(process.env.SADTALKER === "true") {
           let res = resolves.shift();
-          resolves.unshift({ ...res, resolve, tempfile, timeName });
+          console.log(res);
+          resolves.unshift({ ...res, resolve: res.resolve, tempfile, timeName });
           sadTalkerProcess.sendCommand({
             drivenAudio: tempfile.path,
             sourceImage: sourceImagePath,
             still: true,
             enhance: false,
             play: process.env.MUTE ? false : true,
+            batchSize: 2,
           });
         }
         else {
@@ -228,27 +256,6 @@ export async function speak(text, speakerId = sourceId) {
             });
           }
         } 
-      } else {
-        say.getInstalledVoices(console.log);
-        let voice = lang == "fr" ? "Microsoft Paul" : "Microsoft David";
-        say.speak(removeDiacritics(text), voice, 1.0, (err) => {
-          if (err) {
-            return reject(err);
-          }
-          console.log(
-            "\nSpokenText:",
-            text
-            // text.normalize("NFC"),
-            // text.normalize("NFD")
-          );
-          return resolve();
-        });
-      }
-    } catch (error) {
-      console.log(error);
-      resolve();
-    }
-  });
 }
 
 export async function stopSpeaking() {

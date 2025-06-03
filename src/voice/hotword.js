@@ -1,5 +1,5 @@
 import os from "os";
-import { runExecutableWithArgs } from "../utils/processRunner.js";
+import { runExecutableWithArgs } from "../global/processRunner.js";
 import path from "path";
 import { fileURLToPath } from "url";
 

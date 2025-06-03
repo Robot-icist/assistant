@@ -2,7 +2,7 @@ import { spawn } from "child_process";
 import EventEmitter from "events";
 import path from "path";
 import { fileURLToPath } from "url";
-import { killProcessByPort } from "../utils/processRunner.js";
+import { killProcessByPort } from "../global/processRunner.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

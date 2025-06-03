@@ -454,8 +454,9 @@ function animate() {
       freqDisplay = document.createElement('div');
       freqDisplay.id = 'frequency-display';
       freqDisplay.style.position = 'fixed';
-      freqDisplay.style.top = '10px';
-      freqDisplay.style.left = '10px';
+      freqDisplay.style.top = '5%';
+      freqDisplay.style.left = '50%';
+      freqDisplay.style.transform = 'translateX(-50%)';
       freqDisplay.style.color = 'white';
       freqDisplay.style.fontFamily = 'monospace';
       freqDisplay.style.fontSize = '14px';

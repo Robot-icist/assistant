@@ -21,9 +21,9 @@ import {
   mapGlobalKeyToNutKey,
   mapXToScreen,
   mapYToScreen,
-} from "../utils/mapping.js";
-import { LOG } from "../utils/log.js";
-import { rl } from "../utils/rl.js";
+} from "../global/mapping.js";
+import { LOG } from "../global/log.js";
+import { rl } from "../global/rl.js";
 import { speak, stopSpeaking } from "../voice/speak.js";
 import { exec } from "child_process";
 
