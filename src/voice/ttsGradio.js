@@ -8,26 +8,6 @@ async function fetchFileAsBlob(filePath) {
     return new Blob([fileBuffer]);
 }
 
-async function ttsGradio(prompt, language, audioInputUrlOrPath) {
-    let exampleAudio;
-		if (audioInputUrlOrPath.startsWith("http")) {
-			const responseAudio = await fetch(audioInputUrlOrPath);
-			exampleAudio = await responseAudio.blob();
-		} else {
-			exampleAudio = await fetchFileAsBlob(audioInputUrlOrPath);
-		}
-
-    const client = await Client.connect("http://127.0.0.1:7860/");
-    const result = await client.predict("/predict", {
-        prompt,
-        language,
-        audio_file_pth: exampleAudio,
-        agree: true,
-    });
-
-    return result.data;
-}
-
 // New function to call the /synthesize endpoint
 async function xttsGradio(textInput, languageName, speakerAudioUrlOrPath) {
     let speakerAudioBlob;
@@ -42,11 +22,12 @@ async function xttsGradio(textInput, languageName, speakerAudioUrlOrPath) {
         speakerAudioBlob = await fetchFileAsBlob(speakerAudioUrlOrPath);
     }
 
-    const client = await Client.connect("http://127.0.0.1:7860/"); // Assuming same Gradio instance
+    const client = await Client.connect("http://127.0.0.1:7860/"); 
     const result = await client.predict("/synthesize", {
-        text_input: textInput,         // Mapped from your example
-        speaker_wav_path: speakerAudioBlob, // Mapped from your example
-        language_name: languageName,   // Mapped from your example
+        text_input: textInput,        
+        speaker_wav_path: speakerAudioBlob, 
+        language_name: languageName,   
+        triggered_from_frontend: false
     });
 
     // The structure of result.data depends on what your Gradio API returns.
@@ -57,4 +38,4 @@ async function xttsGradio(textInput, languageName, speakerAudioUrlOrPath) {
     return result.data;
 }
 
-export { ttsGradio, xttsGradio, fetchFileAsBlob };
+export { xttsGradio, fetchFileAsBlob };

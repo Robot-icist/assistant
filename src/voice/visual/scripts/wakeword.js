@@ -52,13 +52,21 @@ const whisperCallback = async (err, text) => {
   }
 };
 
+let alwaysOnTrigger = false
+
 export const processCallback = async (wakeword) => {
   console.log("Recognized WakeWord:", wakeword);
   changeColor("gold");
   stopProcessing();
   const params = getParams();
   if (params.whisper) {
-    await toggleRecording(whisperCallback);
+    if(!alwaysOnTrigger && params.alwaysOn) {
+      alwaysOnTrigger = true;
+      await toggleRecording(whisperCallback);
+    }else if(!params.alwaysOn) {
+      alwaysOnTrigger = false;
+      await toggleRecording(whisperCallback);
+    }
   } else
     await startVoiceRecognition("/scripts/" + params.model, async (data) => {
       await logic(data.text);

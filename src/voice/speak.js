@@ -17,7 +17,7 @@ import { runPowerShellAsAdmin } from "../global/processRunner.js";
 import { getProcessing } from "../../index.js";
 import path from "path";
 import { fileURLToPath } from "url";
-import { ttsGradio, xttsGradio } from "./ttsGradio.js";
+import { xttsGradio } from "./ttsGradio.js";
 import { dreamtalkGradio } from "../image/dreamtalk-gradio.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name of the directory
@@ -127,7 +127,8 @@ export async function speak(text, speakerId = sourceId) {
         const data = await xttsGradio(`"${text}"`, lang, speakerWavPath);
         console.timeEnd(timeName);
         // console.log("ttsGradio data", data); 
-        const resultpath = data[0].path;
+        const resultpath = data[0]?.path;
+        if(!resultpath) return resolve();
         console.log("resultpath", resultpath);
         setTimeout(async () => {
           await fs.promises.unlink(resultpath);
@@ -181,10 +182,9 @@ export async function speakWithVideo(text, resultpath, buffer = null) {
     console.log("speakWithVideo is currently locked. Waiting...");
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-
+  try {
   isLocked = true;
   sendToAll("loading:true");
-  try {
     let timeName = `video:${text}`;
     console.time(timeName);
     const fileBuffer = buffer ? buffer : await fs.promises.readFile(resultpath);

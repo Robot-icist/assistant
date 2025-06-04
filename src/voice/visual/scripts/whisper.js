@@ -111,7 +111,7 @@ let isConnecting = false;
 function setupWhisperWebSocket() {
   return new Promise((resolve, reject) => {
     // Check if a connection is already in progress or if a websocket exists
-    if (websocket) {
+    if (websocket && (websocket.readyState === WebSocket.CONNECTING || websocket.readyState === WebSocket.OPEN)) {
       console.log("WebSocket connection already in progress or exists.");
       return resolve(); // Resolve immediately if connecting or connected
     }
@@ -135,11 +135,6 @@ function setupWhisperWebSocket() {
     websocket.onopen = () => {
       console.log("Connected to Whisper Server.");
       isConnecting = false; // Reset the flag on successful connection
-      if (isRecording) {
-        startRecording();
-      } else {
-        console.warn("WebSocket opened but recording is not started.");
-      }
       resolve();
     };
 
@@ -288,7 +283,7 @@ async function toggleRecording(cb) {
     try {
       await setupWhisperWebSocket();
       if (websocket && websocket.readyState === WebSocket.OPEN) {
-        await startRecording();
+          await startRecording();
       } else {
         console.warn("WebSocket not open, recording not started.");
       }

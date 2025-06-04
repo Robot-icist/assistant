@@ -119,7 +119,7 @@ def reset_frequency_after_inactivity(seconds=5):
     if time.time() - last_synthesis_time > seconds:  # Reset after 5 seconds of inactivity
         reset_chunk_upload_frequency()
 
-def synthesize(text_input, speaker_wav_path, language_name):
+def synthesize(text_input, speaker_wav_path, language_name, triggered_from_frontend=False):
     print("CHUNK_UPLOAD_FREQUENCY", flush=True)
     print(CHUNK_UPLOAD_FREQUENCY, flush=True)
     global last_synthesis_time
@@ -214,13 +214,14 @@ def synthesize(text_input, speaker_wav_path, language_name):
         # wav_data = concatenate_chunks(wav_chunks)
         # asyncio.run(async_logic(wav_data))
 
-        # #save to file needed for video generation
-        # wav = torch.cat(wav_chunks, dim=0)
-        # torchaudio.save(output_file_path, wav.squeeze().unsqueeze(0).cpu(), 24000, encoding="PCM_S", bits_per_sample=16)
-
-        output_audio_path = output_file_path
-        status_message = f"Audio generated successfully! Saved to temporary path: {output_audio_path}"
-        print(status_message, flush=True)
+        if triggered_from_frontend:
+            print("Saving audio to file as triggered from frontend...", flush=True)
+            # Save to file needed for video generation / Gradio playback
+            wav = torch.cat(wav_chunks, dim=0)
+            torchaudio.save(output_file_path, wav.squeeze().unsqueeze(0).cpu(), 24000, encoding="PCM_S", bits_per_sample=16)
+            output_audio_path = output_file_path
+            status_message = f"Audio generated successfully! Saved to temporary path: {output_audio_path}"
+            print(status_message, flush=True)
 
     except Exception as e:
         error_msg = f"Error during TTS synthesis: {e}"
@@ -236,9 +237,19 @@ def synthesize(text_input, speaker_wav_path, language_name):
 
     return output_audio_path, status_message
 
+# gr.themes.Base() - the "base" theme sets the primary color to blue but otherwise has minimal styling, making it particularly useful as a base for creating new, custom themes.
+# gr.themes.Default() - the "default" Gradio 5 theme, with a vibrant orange primary color and gray secondary color.
+# gr.themes.Origin() - the "origin" theme is most similar to Gradio 4 styling. Colors, especially in light mode, are more subdued than the Gradio 5 default theme.
+# gr.themes.Citrus() - the "citrus" theme uses a yellow primary color, highlights form elements that are in focus, and includes fun 3D effects when buttons are clicked.
+# gr.themes.Monochrome() - the "monochrome" theme uses a black primary and white secondary color, and uses serif-style fonts, giving the appearance of a black-and-white newspaper.
+# gr.themes.Soft() - the "soft" theme uses a purple primary color and white secondary color. It also increases the border radius around buttons and form elements and highlights labels.
+# gr.themes.Glass() - the "glass" theme has a blue primary color and a transclucent gray secondary color. The theme also uses vertical gradients to create a glassy effect.
+# gr.themes.Ocean() - the "ocean" theme has a blue-green primary color and gray secondary color. The theme also uses horizontal gradients, especially for buttons and some form elements.
+
 # --- Gradio Interface Definition ---
-with gr.Blocks(theme=gr.themes.Soft()) as app:
-    gr.Markdown("# 🐸 Coqui TTS XTTSv2 Gradio Interface")
+with gr.Blocks(theme=gr.themes.Default()) as app:
+    # gr.Markdown("# 🐸 Coqui TTS XTTSv2 Gradio Interface")
+    gr.Markdown("# XTTSv2 Gradio Interface")
     gr.Markdown(
         "Enter text, upload a reference speaker WAV file (clear audio, 5-30 seconds long is ideal, mono 16-bit 22050Hz or 24000Hz recommended), "
         "and select the language of the text."
@@ -259,7 +270,12 @@ with gr.Blocks(theme=gr.themes.Soft()) as app:
             language_dropdown = gr.Dropdown(
                 label="Language of Text",
                 choices=LANGUAGE_CHOICES,
-                value="English" # Default language
+                value="en" # Default language
+            )
+            from_frontend = gr.Checkbox(
+                label="Triggered From Frontend",
+                value=True, # Default value
+                visible=False, # Hidden input to indicate if triggered from frontend
             )
             submit_button = gr.Button("Synthesize Audio", variant="primary")
         
@@ -276,7 +292,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as app:
 
     submit_button.click(
         fn=synthesize,
-        inputs=[text_input, speaker_wav_input, language_dropdown],
+        inputs=[text_input, speaker_wav_input, language_dropdown, from_frontend],
         outputs=[audio_output, status_output]
     )
     
@@ -286,16 +302,16 @@ with gr.Blocks(theme=gr.themes.Soft()) as app:
             ["Bonjour, ceci est un test du système de synthèse vocale.", "wavs/pierrenineytrim.wav", "fr"],
             ["Hola, esta es una prueba del sistema de texto a voz.", "wavs/scarlett.wav", "es"],
         ],
-        inputs=[text_input, speaker_wav_input, language_dropdown],
+        inputs=[text_input, speaker_wav_input, language_dropdown, from_frontend],
         outputs=[audio_output, status_output],
         fn=synthesize,
         cache_examples=False # Set to True if you want to pre-compute and cache example outputs
     )
-    # Add a note about example WAV files
-    gr.Markdown(
-        "Note: For the examples to work, you'll need to create an `wavs` folder in the same directory "
-        "as this script and place `female_voice_sample.wav` and `male_voice_sample.wav` (or your own samples) in it."
-    )
+    # # Add a note about example WAV files
+    # gr.Markdown(
+    #     "Note: For the examples to work, you'll need to create an `wavs` folder in the same directory "
+    #     "as this script and place `female_voice_sample.wav` and `male_voice_sample.wav` (or your own samples) in it."
+    # )
 
 
 async def async_logic(data) :
@@ -307,8 +323,8 @@ async def async_logic(data) :
 # Define a proper function for periodic reset
 def periodic_reset():
     while True:
-        time.sleep(10)
-        reset_frequency_after_inactivity(10)
+        time.sleep(5)
+        reset_frequency_after_inactivity(5)
 
 # Start the thread with the periodic reset function
 threading.Thread(target=periodic_reset, daemon=True).start()
