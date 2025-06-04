@@ -34,6 +34,7 @@ class SadTalkerProcess {
     });
 
     this.process.on("close", (code) => {
+      this.events.emit("err", code);
       console.log(`\nPython SadTalker process exited with code ${code}`);
       this.isReady = false;
       this.process = null;
@@ -63,22 +64,39 @@ class SadTalkerProcess {
       play: true,
     }
   ) {
-    if (!this.isReady) {
-      console.log(
-        "\nPython SadTalker process is not ready. Queuing the command."
-      );
-      this.queue.push(params); // If not ready, queue the command
-      return;
-    }
+    return new Promise((resolve, reject) => {
+      if (!this.isReady) {
+        console.log(
+          "\nPython SadTalker process is not ready. Queuing the command."
+        );
+        this.queue.push(params); // If not ready, queue the command
+        return;
+      }
 
-    // Prepare the command to send as a single string
-    const command = `--driven_audio ${params.drivenAudio} --source_image ${
-      params.sourceImage
-    } ${params.still ? "--still" : ""} ${
-      params.enhance ? "--enhancer gfpgan" : "" // RestoreFormer
-    } --play ${params.play} --batch_size ${params.batchSize ?? 32}\n`;
-    console.log(`\nSending command to Python SadTalker: ${command}`);
-    this.process.stdin.write(command); // Send the command to the Python process
+      // Prepare the command to send as a single string
+      const command = `--driven_audio ${params.drivenAudio} --source_image ${
+        params.sourceImage
+      } ${params.still ? "--still" : ""} ${
+        params.enhance ? "--enhancer gfpgan" : "" // RestoreFormer
+      } --play ${params.play} --batch_size ${params.batchSize ?? 32}\n`;
+      console.log(`\nSending command to Python SadTalker: ${command}`);
+      this.process.stdin.write(command); // Send the command to the Python process
+      const onDone = (output) => {
+        if (output.includes("generated video")) {
+          this.events.off("done", onDone); // Remove listener after resolving
+          resolve(output);
+        }
+      };
+
+      this.events.on("done", onDone); // Listen for the "done" event
+
+      const onErr = (output) => {
+          this.events.off("err", onErr); // Remove listener after resolving
+          reject(output);
+      };
+
+      this.events.on("err", onErr); // Listen for the "done" event
+    });
   }
 
   _processQueue() {

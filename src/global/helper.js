@@ -212,14 +212,14 @@ const createTempFileFromBuffer = async (buffer, extension = "wav") => {
   return {
     path: filePath,
     delete: async (timeout = 60 * 1000) => {
-      try {
         setTimeout(async () => {
-          await fs.promises.unlink(filePath);
-          console.log(`Temporary file deleted: ${filePath}`);
+          try {
+            await fs.promises.unlink(filePath);
+            console.log(`Temporary file deleted: ${filePath}`);
+        } catch (err) {
+          console.error(`Failed to delete temporary file: ${filePath}`, err);
+        }
         }, timeout); // Delete the file after use
-      } catch (err) {
-        console.error(`Failed to delete temporary file: ${filePath}`, err);
-      }
     },
   };
 };

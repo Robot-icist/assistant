@@ -171,6 +171,7 @@ function hideText() {
 function showLoader(numDots = 9) {
   const loaderContainer = document.createElement("div");
   loaderContainer.id = "loader";
+  loaderContainer.className = "loader";
   loaderContainer.style.position = "fixed";
   loaderContainer.style.bottom = "0";
   loaderContainer.style.left = "0";
@@ -220,9 +221,14 @@ function showLoader(numDots = 9) {
 
 function hideLoader() {
   // Find the loader by id and remove it
-  const loaderContainer = document.getElementById("loader");
-  if (loaderContainer) {
-    loaderContainer.remove();
+  const loaderContainers = document.getElementsByClassName("loader");
+  if (loaderContainers.length > 0) {
+    for (let i = 0; i < loaderContainers.length; i++) {
+      const loaderContainer = loaderContainers[i];
+      if (loaderContainer) {
+        loaderContainer.remove();
+      }
+    }
   }
 }
 

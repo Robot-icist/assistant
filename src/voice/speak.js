@@ -114,43 +114,6 @@ deleteDir(resultsPath);
 
 deleteTempDir();
 
-sadTalkerProcess.events.on("done", async (data) => {
-  if (!video) return;
-  let filepath = data.split("\\").pop();
-  let videoPath = path.resolve(resultsPath, filepath);
-  let convertedPath = createTempFileName("converted", "mp4");
-  console.log(
-    "received sadtalker event done",
-    data,
-    filepath,
-    videoPath,
-    convertedPath
-  );
-  let resolve = resolves.shift();
-
-  if (process.env.MUTE && getProcessing()) {
-    await convertToH264(videoPath, convertedPath);
-    fs.readFile(convertedPath, (err, data) => {
-      if (err) {
-        console.error("\nError reading the MP4 file:", err);
-        return;
-      }
-      console.log("\nSending MP4 file...");
-      // Send the WAV file as binary data
-      sendToAll(data, true);
-      setTimeout(async () => {
-        await fs.promises.unlink(convertedPath);
-        console.log("Temporary converted file deleted: ", convertedPath);
-      }, 60 * 1000);
-    });
-  }
-  // console.log(resolve);
-  resolve?.tempfile?.delete();
-  resolve?.resolve();
-  console.timeEnd(resolve?.timeName);
-});
-
-
 export async function speak(text, speakerId = sourceId) {
   if (text.trim() === "" || !getProcessing()) return;
   setSpeakerId(speakerId);
@@ -160,7 +123,7 @@ export async function speak(text, speakerId = sourceId) {
       if (process.env.TTS) {
         let timeName = `tts:${text}`;
         console.time(timeName);
-        resolves.push({ resolve, text, timeName });
+        // resolves.push({ resolve, text, timeName });
         const data = await xttsGradio(`"${text}"`, lang, speakerWavPath);
         console.timeEnd(timeName);
         // console.log("ttsGradio data", data); 
@@ -170,7 +133,9 @@ export async function speak(text, speakerId = sourceId) {
           await fs.promises.unlink(resultpath);
           console.log("Temporary converted file deleted: ", resultpath);
         }, 60 * 1000);
-        if (!video && !process.env.MUTE) playAudio(resultpath);
+        
+        // if (!video && !process.env.MUTE) playAudio(resultpath);
+        
         // // obsolete part as now xtts sends directly to the websocket
         // // Read the WAV file as a buffer
         // if (process.env.MUTE && !video && getProcessing())
@@ -183,8 +148,8 @@ export async function speak(text, speakerId = sourceId) {
         //     // Send the WAV file as binary data
         //     sendToAll(data, true);
         //   });
-        if (!video) return resolve();
-        if (!getProcessing() && !video) return resolve();
+        // if (!video) return resolve();
+        return resolve();
         // await speakWithVideo(text, resultpath);
       } else {
         say.getInstalledVoices(console.log);
@@ -209,53 +174,99 @@ export async function speak(text, speakerId = sourceId) {
   });
 }
 
+let isLocked = false; 
+
 export async function speakWithVideo(text, resultpath, buffer = null) {
-        let timeName = `video:${text}`;
-        console.time(timeName);
-        const fileBuffer = buffer ? buffer : await fs.promises.readFile(resultpath);
-        const tempfile = await createTempFileFromBuffer(fileBuffer, "wav");
-        if(process.env.SADTALKER === "true") {
-          let res = resolves.shift();
-          console.log(res);
-          resolves.unshift({ ...res, resolve: res.resolve, tempfile, timeName });
-          sadTalkerProcess.sendCommand({
-            drivenAudio: tempfile.path,
-            sourceImage: sourceImagePath,
-            still: true,
-            enhance: false,
-            play: process.env.MUTE ? false : true,
-            batchSize: 2,
-          });
-        }
-        else {
-          // dreamtalk
-          const videoData = await dreamtalkGradio(resultpath,sourceImagePath);
-          console.timeEnd(timeName);
-          // console.log("dreamtalkGradio data", data);
-          const videoPath = videoData[0].video.path;
-          console.log(videoPath);
-          let convertedPath = createTempFileName("converted", "mp4");
-          if (process.env.MUTE && getProcessing()) {
-            // await convertToH264(videoPath, convertedPath);
-            // fs.readFile(convertedPath, (err, data) => {
-              fs.readFile(videoPath, (err, data) => {
-              if (err) {
-                console.error("\nError reading the MP4 file:", err);
-                return;
-              }
-              console.log("\nSending MP4 file...");
-              // Send the WAV file as binary data
-              sendToAll(data, true);
-              setTimeout(async () => {
-                // await fs.promises.unlink(convertedPath);
-                await fs.promises.unlink(videoPath);
-                // console.log("Temporary converted file deleted: ", convertedPath);
-                console.log("Temporary converted file deleted: ", videoPath);
-              }, 60 * 1000);
-              return resolve();
-            });
+  while (isLocked) {
+    console.log("speakWithVideo is currently locked. Waiting...");
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+
+  isLocked = true;
+  sendToAll("loading:true");
+  try {
+    let timeName = `video:${text}`;
+    console.time(timeName);
+    const fileBuffer = buffer ? buffer : await fs.promises.readFile(resultpath);
+    const tempfile = await createTempFileFromBuffer(fileBuffer, "wav");
+
+    if (process.env.SADTALKER === "true") {
+      const data = await sadTalkerProcess.sendCommand({
+        drivenAudio: tempfile.path,
+        sourceImage: sourceImagePath,
+        still: true,
+        enhance: false,
+        play: process.env.MUTE ? false : true,
+        batchSize: 32,
+      });
+
+      if (!video) return;
+
+      let filepath = data.split("\\").pop();
+      let videoPath = path.resolve(resultsPath, filepath);
+      let convertedPath = createTempFileName("converted", "mp4");
+
+      console.log(
+        "received sadtalker event done",
+        data,
+        filepath,
+        videoPath,
+        convertedPath
+      );
+
+      if (process.env.MUTE) {
+        await convertToH264(videoPath, convertedPath);
+        fs.readFile(convertedPath, (err, data) => {
+          if (err) {
+            console.error("\nError reading the MP4 file:", err);
+            return;
           }
-        } 
+          console.log("\nSending MP4 file...");
+          sendToAll(data, true);
+          setTimeout(async () => {
+            try {
+              await fs.promises.unlink(convertedPath);
+              console.log("Temporary converted file deleted: ", convertedPath);
+            } catch (error) {
+              console.log("Temporary converted file deletion error");
+            }
+          }, 60 * 1000);
+        });
+      }
+
+      tempfile.delete();
+      console.timeEnd(timeName);
+    } else {
+      const videoData = await dreamtalkGradio(resultpath, sourceImagePath);
+      console.timeEnd(timeName);
+
+      const videoPath = videoData[0].video.path;
+      console.log(videoPath);
+      if (process.env.MUTE && getProcessing()) {
+        fs.readFile(videoPath, (err, data) => {
+          if (err) {
+            console.error("\nError reading the MP4 file:", err);
+            return;
+          }
+          console.log("\nSending MP4 file...");
+          sendToAll(data, true);
+          setTimeout(async () => {
+            try {
+              await fs.promises.unlink(videoPath);
+              console.log("Temporary converted file deleted: ", videoPath);
+            } catch (error) {
+              console.log("Temporary converted file deletion error");
+            }
+          }, 60 * 1000);
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Error in speakWithVideo:", error);
+  } finally {
+    isLocked = false; // Release the lock
+    sendToAll("loading:false");
+  }
 }
 
 export async function stopSpeaking() {

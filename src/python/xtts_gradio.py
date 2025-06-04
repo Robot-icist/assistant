@@ -164,9 +164,9 @@ def synthesize(text_input, speaker_wav_path, language_name):
 
         print(f"Synthesizing: Text='{text_input[:50]}...', Speaker WAV='{speaker_wav_path}', Lang='{language_code}'", flush=True)
 
-        if device == "cuda":
-            torch.cuda.empty_cache()
-        gc.collect()
+        # if device == "cuda":
+        #     torch.cuda.empty_cache()
+        # gc.collect()
 
         # tts_model.tts_to_file(
         #     text=text_input,
@@ -214,7 +214,7 @@ def synthesize(text_input, speaker_wav_path, language_name):
         # wav_data = concatenate_chunks(wav_chunks)
         # asyncio.run(async_logic(wav_data))
 
-        # #save to file previously needed for video generation
+        # #save to file needed for video generation
         # wav = torch.cat(wav_chunks, dim=0)
         # torchaudio.save(output_file_path, wav.squeeze().unsqueeze(0).cpu(), 24000, encoding="PCM_S", bits_per_sample=16)
 
@@ -229,10 +229,10 @@ def synthesize(text_input, speaker_wav_path, language_name):
         if output_audio_path and os.path.exists(output_audio_path):
             os.remove(output_audio_path) # Clean up temp file if error occurred after creation
         output_audio_path = None
-    finally:
-        if device == "cuda":
-            torch.cuda.empty_cache()
-        gc.collect()
+    # finally:
+    #     if device == "cuda":
+    #         torch.cuda.empty_cache()
+    #     gc.collect()
 
     return output_audio_path, status_message
 
@@ -307,8 +307,8 @@ async def async_logic(data) :
 # Define a proper function for periodic reset
 def periodic_reset():
     while True:
-        time.sleep(5)
-        reset_frequency_after_inactivity(5)
+        time.sleep(10)
+        reset_frequency_after_inactivity(10)
 
 # Start the thread with the periodic reset function
 threading.Thread(target=periodic_reset, daemon=True).start()

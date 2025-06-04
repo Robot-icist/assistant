@@ -292,6 +292,7 @@ export const logic = async (recognizedText, bytes = null, ws = null) => {
   else await ollamaChat(recognizedText, speak);
   setProcessing(false);
   sendToAll("loading:false");
+  console.log("\nProcessing done.");
 };
 
 // let selectedHotwordRecognition = process.env.CUSTOM ? customHotword : hotword;
