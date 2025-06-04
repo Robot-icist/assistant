@@ -367,6 +367,18 @@ try:
                 print("[ACTION] Double Right Click triggered by blink.")
                 last_blink_time = current_time
 
+        # Ensure double-click functionality is implemented for hand mode
+        if current_mode == MODE_HAND_CONTROL:
+            if display_normalized_dist_thumb_index < PINCH_THRESHOLD:
+                current_time = time.time()
+                if current_time - last_left_click_time < DOUBLE_CLICK_THRESHOLD:
+                    pyautogui.doubleClick(button='left')
+                    print("[ACTION] Double Left Click triggered.")
+                else:
+                    pyautogui.click(button='left')
+                    print("[ACTION] Single Left Click triggered.")
+                last_left_click_time = current_time
+
         cv2.imshow("Hand Mouse Control - Debug ('q' to quit)", frame)
         
         key = cv2.waitKey(5) & 0xFF
