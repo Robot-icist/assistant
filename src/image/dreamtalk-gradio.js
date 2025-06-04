@@ -33,5 +33,4 @@ async function dreamtalkGradio(audioInputUrlOrPath, imagePathUrlOrPath, emotiona
     });
     return result.data;
 }
-
 export { dreamtalkGradio, fetchFileAsBlob };

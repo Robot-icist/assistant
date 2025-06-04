@@ -1,0 +1,8 @@
+opencv-python
+dlib
+numpy
+scipy
+pyautogui
+# mediapipe==0.10.5
+mediapipe
+matplotlib
