@@ -35,15 +35,18 @@ def generate_blink_seq(num_frames):
     return ratio 
 
 def generate_blink_seq_randomly(num_frames):
-    ratio = np.zeros((num_frames,1))
-    if num_frames<=20:
+    ratio = np.zeros((num_frames, 1))
+    if num_frames <= 20:
         return ratio
     frame_id = 0
     while frame_id in range(num_frames):
-        start = random.choice(range(min(10,num_frames), min(int(num_frames/2), 70))) 
-        if frame_id+start+5<=num_frames - 1:
-            ratio[frame_id+start:frame_id+start+5, 0] = [0.5, 0.9, 1.0, 0.9, 0.5]
-            frame_id = frame_id+start+5
+        start_range = range(min(10, num_frames), min(int(num_frames / 2), 70))
+        if len(start_range) == 0:  # Ensure the range is valid
+            break
+        start = random.choice(start_range)
+        if frame_id + start + 5 <= num_frames - 1:
+            ratio[frame_id + start : frame_id + start + 5, 0] = [0.5, 0.9, 1.0, 0.9, 0.5]
+            frame_id = frame_id + start + 5
         else:
             break
     return ratio

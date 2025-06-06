@@ -207,19 +207,19 @@ def synthesize(text_input, speaker_wav_path, language_name, triggered_from_front
         for i, chunk in enumerate(chunks):
             if i == 0:
                 print(f"Time to first chunck: {time.time() - t0}", flush=True)
-                # Send first chunk immediately
-                wav_data = concatenate_chunks([chunk])
-                asyncio.run(async_logic(wav_data))
-                chunks_to_send = []  # Reset accumulator
+                # # # Send first chunk immediately
+                # # wav_data = concatenate_chunks([chunk])
+                # # asyncio.run(async_logic(wav_data))
+                # chunks_to_send = []  # Reset accumulator
                 # chunks_to_send.append(chunk) 
-            else:
-                chunks_to_send.append(chunk)
-                # Send accumulated chunks every CHUNK_UPLOAD_FREQUENCY iterations after the first chunk
-                if (i + 1) % CHUNK_UPLOAD_FREQUENCY == 0 and chunks_to_send:
-                    wav_data = concatenate_chunks(chunks_to_send)
-                    asyncio.run(async_logic(wav_data))
-                    chunks_to_send = []  # Reset accumulator after sending
-                    step_up_chunk_upload_frequency()  # Step up the frequency
+            # else:
+            chunks_to_send.append(chunk)
+            # Send accumulated chunks every CHUNK_UPLOAD_FREQUENCY iterations after the first chunk
+            if (i + 1) % CHUNK_UPLOAD_FREQUENCY == 0 and chunks_to_send:
+                wav_data = concatenate_chunks(chunks_to_send)
+                asyncio.run(async_logic(wav_data))
+                chunks_to_send = []  # Reset accumulator after sending
+                step_up_chunk_upload_frequency()  # Step up the frequency
 
             print(f"Received chunk {i} of audio length {chunk.shape[-1]}", flush=True)
             wav_chunks.append(chunk)

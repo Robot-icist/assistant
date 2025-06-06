@@ -80,7 +80,7 @@ class SadTalkerProcess {
         params.sourceImage
       } ${params.still ? "--still" : ""} ${
         params.enhance ? "--enhancer gfpgan" : "" // RestoreFormer
-      } --play ${params.play} --batch_size ${params.batchSize ?? 32} ${params.face3d ? "--face3dvis" : ""} --preprocess extcrop\n`;
+      } --play ${params.play} --batch_size ${params.batchSize ?? 32} ${params.face3d ? "--face3dvis" : ""}\n`;
       console.log(`\nSending command to Python SadTalker: ${command}`);
       this.process.stdin.write(command); // Send the command to the Python process
       const onDone = (output) => {

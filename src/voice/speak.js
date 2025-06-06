@@ -62,7 +62,7 @@ const images = [
   "C:/Projects/assistant/src/image/pictures/gilles/gilles.jpg",
   "C:/Projects/assistant/src/image/pictures/axel/JPEG_20240903_181141.jpg",
   "C:/Projects/assistant/src/image/pictures/axel/telechargement(1).jpg",
-  "C:/Projects/assistant/src/image/pictures/jarvis/golden-face-mask-7508769.jpeg"
+  "C:/Projects/assistant/src/image/pictures/jarvis/3D-Front.jpg"
 ];
 const wavs = [
   "C:\\Projects\\assistant\\src\\python\\wavs\\bernardgabaytrim.wav",
