@@ -206,22 +206,31 @@ def process_task(args, preprocess_model, audio_to_coeff, animate_from_coeff):
     else:
         ref_pose_coeff_path=None
 
+    if args.use_idle_mode:
+        audio_path = os.path.join(save_dir, 'idlemode_'+str(2)+'.wav') ## generate audio from this new audio_path
+        from pydub import AudioSegment
+        one_sec_segment = AudioSegment.silent(duration=1000*2)  #duration in milliseconds
+        one_sec_segment.export(audio_path, format="wav")
+
     batch = get_data(first_coeff_path, audio_path, device, ref_eyeblink_coeff_path, still=args.still)
     coeff_path = audio_to_coeff.generate(batch, save_dir, pose_style, ref_pose_coeff_path)
-
+    data = None
+    result = None
     if args.face3dvis:
         from src.face3d.visualize import gen_composed_video
-        gen_composed_video(args, device, first_coeff_path, coeff_path, audio_path, os.path.join(save_dir, '3dface.mp4'))
+        os.makedirs('.\\3D', exist_ok=True)
+        gen_composed_video(args, device, first_coeff_path, coeff_path, audio_path, os.path.join('.\\3D', f"generated_video_3dface_{strftime('%Y%m%d_%H%M%S')}.mp4"))
 
-    data = get_facerender_data(coeff_path, crop_pic_path, first_coeff_path, audio_path, 
+    else :
+        data = get_facerender_data(coeff_path, crop_pic_path, first_coeff_path, audio_path, 
                                 batch_size, input_yaw_list, input_pitch_list, input_roll_list,
                                 expression_scale=args.expression_scale, still_mode=args.still, preprocess=args.preprocess, size=args.size, facemodel=args.facerender)
 
-    result = animate_from_coeff.generate(data, save_dir, pic_path, crop_info, \
+        result = animate_from_coeff.generate(data, save_dir, pic_path, crop_info, \
                                 enhancer=args.enhancer, background_enhancer=args.background_enhancer, preprocess=args.preprocess, img_size=args.size)
 
-    shutil.move(result, save_dir+'.mp4')
-    print('The generated video is named:', save_dir+'.mp4', flush=True)
+        shutil.move(result, save_dir+'.mp4')
+        print('The generated video is :', save_dir+'.mp4', flush=True)
 
     if not args.verbose:
         shutil.rmtree(save_dir)
@@ -241,7 +250,7 @@ def process_task(args, preprocess_model, audio_to_coeff, animate_from_coeff):
 def main():
     # Initialize models and paths once before the loop starts
     parser = ArgumentParser()
-    parser.add_argument("--driven_audio", default='./examples/driven_audio/bus_chinese.wav', help="path to driven audio")
+    parser.add_argument("--driven_audio", default=None, help="path to driven audio")
     parser.add_argument("--source_image", default='./examples/source_image/full_body_1.png', help="path to source image")
     parser.add_argument("--ref_eyeblink", default=None, help="path to reference video providing eye blinking")
     parser.add_argument("--ref_pose", default=None, help="path to reference video providing pose")
@@ -278,6 +287,7 @@ def main():
 
     parser.add_argument('--device', default='cuda', choices=['cpu', 'cuda'], help='device to use')
     parser.add_argument('--play', default=True, help='play video after generation')
+    parser.add_argument('--use_idle_mode', default=False, help='idle mode with silent audio')
 
     args = parser.parse_args()
 

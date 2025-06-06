@@ -49,8 +49,9 @@ const params = {
   alwaysOn: false,
   keepInMemory: false,
   showVoiceFrequency: false,
-  voiceFrequencyThreshold: (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) ? 40 : 80,
+  voiceFrequencyThreshold: (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) ? 50 : 100,
   voiceDurationThreshold: 1000,
+  D3: false,
 };
 
 export const getParams = () => params;
@@ -287,7 +288,7 @@ assistantFolder
   .onChange(async (value) => {
     params.llm = value;
   });
-assistantFolder.add(params, "speaker", 0, 12, 1).onChange((value) => {
+assistantFolder.add(params, "speaker", 0, 14, 1).onChange((value) => {
   params.speaker = value;
 });
 
@@ -325,6 +326,10 @@ assistantFolder.add(params, "voiceDurationThreshold", 0, 2000, 100).onChange(asy
 
 assistantFolder.add(params, "keepInMemory").onChange(async (value) => {
   params.keepInMemory = value;
+});
+
+assistantFolder.add(params, "D3").onChange(async (value) => {
+  params.D3 = value;
 });
 
 let mouseX = 0;

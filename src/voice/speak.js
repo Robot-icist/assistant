@@ -17,8 +17,8 @@ import { runPowerShellAsAdmin } from "../global/processRunner.js";
 import { getProcessing } from "../../index.js";
 import path from "path";
 import { fileURLToPath } from "url";
-import { xttsGradio } from "./ttsGradio.js";
-import { dreamtalkGradio } from "../image/dreamtalk-gradio.js";
+import { xttsGradio } from "./xttsGradio.js";
+import { dreamtalkGradio } from "../image/dreamtalkGradio.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name of the directory
 
@@ -62,11 +62,11 @@ const images = [
   "C:/Projects/assistant/src/image/pictures/gilles/gilles.jpg",
   "C:/Projects/assistant/src/image/pictures/axel/JPEG_20240903_181141.jpg",
   "C:/Projects/assistant/src/image/pictures/axel/telechargement(1).jpg",
-  // "C:/Projects/assistant/src/image/pictures/axel/telechargement.jpg",
+  "C:/Projects/assistant/src/image/pictures/jarvis/golden-face-mask-7508769.jpeg"
 ];
 const wavs = [
   "C:\\Projects\\assistant\\src\\python\\wavs\\bernardgabaytrim.wav",
-  "C:\\Projects\\assistant\\src\\python\\wavs\\pierrenineytrim.wav",
+  "C:\\Projects\\assistant\\src\\python\\wavs\\pierrenineytrim20.wav",
   "C:\\Projects\\assistant\\src\\python\\wavs\\weapon.wav",
   "C:\\Projects\\assistant\\src\\python\\wavs\\liamneeson.wav",
   "C:\\Projects\\assistant\\src\\python\\wavs\\scarlett.wav",
@@ -79,6 +79,7 @@ const wavs = [
   "C:\\Projects\\assistant\\src\\python\\wavs\\gilles.wav",
   "C:\\Projects\\assistant\\src\\python\\wavs\\voixaxel2.wav",
   "C:\\Projects\\assistant\\src\\python\\wavs\\voixaxel.wav",
+  "C:\\Projects\\assistant\\src\\python\\wavs\\bernardgabaytrim.wav",
 ];
 
 let sourceId = process.env.ID ? process.env.ID : lang == "fr" ? 1 : 2;
@@ -103,21 +104,31 @@ export const setVideo = (val) => {
   video = val;
 };
 
+let D3 = false;
+
+export const getD3 = () => {
+  return D3;    
+};
+
+export const setD3 = (x) => {
+  D3 = x;    
+};
 let resolves = [];
 
 export const getResolves = () => resolves;
 export const setResolves = (r) => resolves = r;
 
 const resultsPath = path.resolve(__dirname, "../python/sadtalker/results");
+const D3Path = path.resolve(__dirname, "../python/sadtalker/3D");
 
 deleteDir(resultsPath);
+deleteDir(D3Path);
 
 deleteTempDir();
 
 export async function speak(text, speakerId = sourceId) {
   if (text.trim() === "" || !getProcessing()) return;
   setSpeakerId(speakerId);
-  // await sleep(250);
   return new Promise(async (resolve, reject) => {
     try {
       if (process.env.TTS) {
@@ -135,20 +146,8 @@ export async function speak(text, speakerId = sourceId) {
           console.log("Temporary converted file deleted: ", resultpath);
         }, 60 * 1000);
         
-        // if (!video && !process.env.MUTE) playAudio(resultpath);
-        
-        // // obsolete part as now xtts sends directly to the websocket
-        // // Read the WAV file as a buffer
-        // if (process.env.MUTE && !video && getProcessing())
-        //   fs.readFile(resultpath, (err, data) => {
-        //     if (err) {
-        //       console.error("\nError reading the WAV file:", err);
-        //       return;
-        //     }
-        //     console.log("\nSending WAV file...");
-        //     // Send the WAV file as binary data
-        //     sendToAll(data, true);
-        //   });
+        if (!video && !process.env.MUTE) playAudio(resultpath);
+
         // if (!video) return resolve();
         return resolve();
         // await speakWithVideo(text, resultpath);
@@ -177,14 +176,21 @@ export async function speak(text, speakerId = sourceId) {
 
 let isLocked = false; 
 
+let videoQueue = [];
+
 export async function speakWithVideo(text, resultpath, buffer = null) {
-  while (isLocked) {
-    console.log("speakWithVideo is currently locked. Waiting...");
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  try {
+  videoQueue.push({ text, resultpath, buffer });
+  processVideoQueue();
+}
+
+async function processVideoQueue() {
+  if (videoQueue.length === 0 || isLocked) return;
+
+  const { text, resultpath, buffer } = videoQueue.shift();
   isLocked = true;
-  sendToAll("loading:true");
+
+  try {
+    sendToAll("loading:true");
     let timeName = `video:${text}`;
     console.time(timeName);
     const fileBuffer = buffer ? buffer : await fs.promises.readFile(resultpath);
@@ -197,13 +203,16 @@ export async function speakWithVideo(text, resultpath, buffer = null) {
         still: true,
         enhance: false,
         play: process.env.MUTE ? false : true,
-        batchSize: 32,
+        batchSize: D3 ? 64 : 32,
+        face3d: D3,
       });
 
       if (!video) return;
 
       let filepath = data.split("\\").pop();
-      let videoPath = path.resolve(resultsPath, filepath);
+      let videoPath = fs.existsSync(path.resolve(resultsPath, filepath))
+        ? path.resolve(resultsPath, filepath)
+        : path.resolve(D3Path, filepath);
       let convertedPath = createTempFileName("converted", "mp4");
 
       console.log(
@@ -264,8 +273,9 @@ export async function speakWithVideo(text, resultpath, buffer = null) {
   } catch (error) {
     console.error("Error in speakWithVideo:", error);
   } finally {
-    isLocked = false; // Release the lock
+    isLocked = false;
     sendToAll("loading:false");
+    processVideoQueue();
   }
 }
 

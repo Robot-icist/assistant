@@ -19,6 +19,7 @@ class SadTalkerProcess {
     this.isReady = false;
     this.queue = [];
     this.events = new EventEmitter();
+    this.events.setMaxListeners(100); // Increase max listeners to handle multiple events
   }
 
   start() {
@@ -49,7 +50,7 @@ class SadTalkerProcess {
       if (output.includes("SadTalker Service Ready")) {
         this.isReady = true;
         this._processQueue(); // Start processing the queue once the process is ready
-      } else if (output.includes("generated video")) {
+      } else if (output.includes("generated video is :")) {
         this.events.emit("done", output);
       }
     });
@@ -62,6 +63,7 @@ class SadTalkerProcess {
       still: true,
       enhance: false,
       play: true,
+      face3d: true
     }
   ) {
     return new Promise((resolve, reject) => {
@@ -78,7 +80,7 @@ class SadTalkerProcess {
         params.sourceImage
       } ${params.still ? "--still" : ""} ${
         params.enhance ? "--enhancer gfpgan" : "" // RestoreFormer
-      } --play ${params.play} --batch_size ${params.batchSize ?? 32}\n`;
+      } --play ${params.play} --batch_size ${params.batchSize ?? 32} ${params.face3d ? "--face3dvis" : ""} --preprocess extcrop\n`;
       console.log(`\nSending command to Python SadTalker: ${command}`);
       this.process.stdin.write(command); // Send the command to the Python process
       const onDone = (output) => {
@@ -92,7 +94,7 @@ class SadTalkerProcess {
 
       const onErr = (output) => {
           this.events.off("err", onErr); // Remove listener after resolving
-          reject(output);
+          resolve(output);
       };
 
       this.events.on("err", onErr); // Listen for the "done" event

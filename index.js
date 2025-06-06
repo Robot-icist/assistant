@@ -62,7 +62,7 @@ import { mapLanguageToCode } from "./src/global/mapping.js";
 import { comfyClient, generateImage } from "./src/image/comfyui.js";
 import path from "path";
 import { fileURLToPath } from "url";
-import { xttsProcess } from "./src/voice/ttsProcess.js";
+import { xttsProcess } from "./src/voice/xttsProcess.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name of the directory
 

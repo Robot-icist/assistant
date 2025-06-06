@@ -16,9 +16,27 @@ from TTS.tts.models.xtts import Xtts
 
 import numpy as np
 import asyncio
-import json # if you send json
 
 import threading
+
+class AutoFlushHandler:
+    def write(self, message):
+        sys.__stdout__.write(message)
+        sys.__stdout__.flush()
+
+    def flush(self):
+        sys.__stdout__.flush()
+
+    def fileno(self):
+        return sys.__stdout__.fileno()
+
+    def isatty(self):
+        return sys.__stdout__.isatty()
+
+    def close(self):
+        sys.__stdout__.close()
+
+sys.stdout = AutoFlushHandler()
 
 client = None
 
@@ -104,7 +122,7 @@ def reset_chunk_upload_frequency():
 # Function to step up the chunk upload frequency
 def step_up_chunk_upload_frequency():
     global CHUNK_UPLOAD_FREQUENCY
-    CHUNK_UPLOAD_FREQUENCY = CHUNK_UPLOAD_FREQUENCY * 3
+    CHUNK_UPLOAD_FREQUENCY = CHUNK_UPLOAD_FREQUENCY * 2
 
 def concatenate_chunks(chunks_list):
     # Concatenate chunks and convert to audio data
@@ -115,9 +133,10 @@ def concatenate_chunks(chunks_list):
 
 # Function to reset chunk upload frequency after inactivity
 def reset_frequency_after_inactivity(seconds=5):
-    global last_synthesis_time, CHUNK_UPLOAD_FREQUENCY
+    global last_synthesis_time, CHUNK_UPLOAD_FREQUENCY, previous_audio_path
     if time.time() - last_synthesis_time > seconds:  # Reset after 5 seconds of inactivity
         reset_chunk_upload_frequency()
+        previous_audio_path = None  # Reset previous audio path to force re-computation of speaker latents
 
 def synthesize(text_input, speaker_wav_path, language_name, triggered_from_frontend=False):
     print("CHUNK_UPLOAD_FREQUENCY", flush=True)
@@ -164,9 +183,9 @@ def synthesize(text_input, speaker_wav_path, language_name, triggered_from_front
 
         print(f"Synthesizing: Text='{text_input[:50]}...', Speaker WAV='{speaker_wav_path}', Lang='{language_code}'", flush=True)
 
-        # if device == "cuda":
-        #     torch.cuda.empty_cache()
-        # gc.collect()
+        if device == "cuda":
+            torch.cuda.empty_cache()
+        gc.collect()
 
         # tts_model.tts_to_file(
         #     text=text_input,
@@ -188,11 +207,11 @@ def synthesize(text_input, speaker_wav_path, language_name, triggered_from_front
         for i, chunk in enumerate(chunks):
             if i == 0:
                 print(f"Time to first chunck: {time.time() - t0}", flush=True)
-                # # Send first chunk immediately
-                # wav_data = concatenate_chunks([chunk])
-                # asyncio.run(async_logic(wav_data))
+                # Send first chunk immediately
+                wav_data = concatenate_chunks([chunk])
+                asyncio.run(async_logic(wav_data))
                 chunks_to_send = []  # Reset accumulator
-                chunks_to_send.append(chunk) 
+                # chunks_to_send.append(chunk) 
             else:
                 chunks_to_send.append(chunk)
                 # Send accumulated chunks every CHUNK_UPLOAD_FREQUENCY iterations after the first chunk
@@ -230,10 +249,10 @@ def synthesize(text_input, speaker_wav_path, language_name, triggered_from_front
         if output_audio_path and os.path.exists(output_audio_path):
             os.remove(output_audio_path) # Clean up temp file if error occurred after creation
         output_audio_path = None
-    # finally:
-    #     if device == "cuda":
-    #         torch.cuda.empty_cache()
-    #     gc.collect()
+    finally:
+        if device == "cuda":
+            torch.cuda.empty_cache()
+        gc.collect()
 
     return output_audio_path, status_message
 
@@ -312,7 +331,6 @@ with gr.Blocks(theme=gr.themes.Default()) as app:
     #     "Note: For the examples to work, you'll need to create an `wavs` folder in the same directory "
     #     "as this script and place `female_voice_sample.wav` and `male_voice_sample.wav` (or your own samples) in it."
     # )
-
 
 async def async_logic(data) :
     global client 

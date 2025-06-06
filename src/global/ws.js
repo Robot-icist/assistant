@@ -3,6 +3,7 @@ import { getProcessing, logic, setProcessing } from "../../index.js";
 import {
   getLang,
   getVideo,
+  setD3,
   setLang,
   setSpeakerId,
   setVideo,
@@ -60,6 +61,7 @@ export const startWs = () => {
           if (json.google != null) setGoogle(json.google);
           if (json.llm != null) setLLM(json.llm);
           if (json.keepInMemory != null) setKeepInMemory(json.keepInMemory);
+          if (json.D3 != null) setD3(json.D3);
           if (json.text != null && json.text != "") {
             await logic(json.text, null, ws);
           }

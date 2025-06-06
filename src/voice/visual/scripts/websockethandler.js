@@ -249,7 +249,7 @@ class WebSocketHandler {
       if (mediaElement.id == "image") this.playNextMedia();
 
       let oneSecondBeforeEndFired = false;
-      let timeBeforeEnd = 0.5;
+      let timeBeforeEnd = 0.25;
       mediaElement.onended = () => {
         if(type.startsWith("video")) return;
         WS.events.emit("played");

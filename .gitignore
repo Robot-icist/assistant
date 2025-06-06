@@ -343,19 +343,13 @@ src/python/speech-driven-animation/sda/data/
 **/*.pt
 **/*.pth
 **/*.safetensors
+**/*.dat
+**/*.pyc
+**/*.mat
+**/*.zip
+**/*.bin
+**/*.txt
 
-*.jpeg
-*.jpg
-*.wav
-*.bmp
-*.mp3
-*.mp4
-*.tar
-*.tar.gz
-*.pt
-*.pth
-*.safetensors
-*.pyc
 
 .parcel-cache/
 **/.parce-cache/

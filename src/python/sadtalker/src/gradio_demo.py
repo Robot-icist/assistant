@@ -72,7 +72,8 @@ class SadTalker():
 
         print(source_image)
         pic_path = os.path.join(input_dir, os.path.basename(source_image)) 
-        shutil.move(source_image, input_dir)
+        # shutil.move(source_image, input_dir)
+        shutil.copy(source_image, input_dir)
 
         if driven_audio is not None and os.path.isfile(driven_audio):
             audio_path = os.path.join(input_dir, os.path.basename(driven_audio))  
@@ -82,7 +83,8 @@ class SadTalker():
                 mp3_to_wav(driven_audio, audio_path.replace('.mp3', '.wav'), 16000)
                 audio_path = audio_path.replace('.mp3', '.wav')
             else:
-                shutil.move(driven_audio, input_dir)
+                # shutil.move(driven_audio, input_dir)
+                shutil.copy(driven_audio, input_dir)
 
         elif use_idle_mode:
             audio_path = os.path.join(input_dir, 'idlemode_'+str(length_of_audio)+'.wav') ## generate audio from this new audio_path
@@ -153,6 +155,7 @@ class SadTalker():
             preprocess=preprocess, size=size, expression_scale = exp_scale, facemodel=facerender)
         return_path = self.animate_from_coeff.generate(data, save_dir,  pic_path, crop_info, enhancer='gfpgan' if use_enhancer else None, preprocess=preprocess, img_size=size)
         video_name = data['video_name']
+        shutil.move(return_path, save_dir+'.mp4')
         print(f'The generated video is named {video_name} in {save_dir}')
 
         del self.preprocess_model
@@ -165,6 +168,7 @@ class SadTalker():
             
         import gc; gc.collect()
         
-        return return_path
+        # return return_path
+        return save_dir+'.mp4'
 
     

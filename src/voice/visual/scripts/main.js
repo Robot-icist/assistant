@@ -12,6 +12,7 @@ export const sendParams = (text = null) => {
       google: params.google,
       llm: params.llm,
       keepInMemory: params.keepInMemory,
+      D3: params.D3,
     })
   );
 };
