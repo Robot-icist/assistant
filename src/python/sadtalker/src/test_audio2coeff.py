@@ -89,11 +89,19 @@ class Audio2Coeff():
             # Ensure polyorder is less than pose_len
             polyorder = min(2, pose_len - 1)
 
-            if pose_len < 13:
-                pose_len = int((pose_len - 1) / 2) * 2 + 1
-                pose_pred = torch.Tensor(savgol_filter(np.array(pose_pred.cpu()), pose_len, polyorder, axis=1)).to(self.device)
+            if pose_len > polyorder:
+                # Ensure pose_len is odd and greater than polyorder
+                if pose_len < 13:
+                    pose_len = max(polyorder + 1, int((pose_len - 1) / 2) * 2 + 1)
+                else:
+                    pose_len = 13  # Use a default valid window length if pose_len >= 13
+
+                if pose_len > polyorder:
+                    pose_pred = torch.Tensor(savgol_filter(np.array(pose_pred.cpu()), pose_len, polyorder, axis=1)).to(self.device)
+                else:
+                    print(f"Skipping Savitzky-Golay filter: adjusted pose_len ({pose_len}) <= polyorder ({polyorder})")
             else:
-                pose_pred = torch.Tensor(savgol_filter(np.array(pose_pred.cpu()), 13, polyorder, axis=1)).to(self.device) 
+                print(f"Skipping Savitzky-Golay filter: pose_len ({pose_len}) <= polyorder ({polyorder})")
             
             coeffs_pred = torch.cat((exp_pred, pose_pred), dim=-1)            #bs T 70
 

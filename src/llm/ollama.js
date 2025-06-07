@@ -16,6 +16,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { sendToAll } from "../global/ws.js";
 import { getLang } from "../voice/speak.js";
 import "dotenv/config";
+import nlp from 'compromise'
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -367,10 +368,14 @@ function endsWithPunctuation(text) {
 
 function splitByPunctuation(text) {
   /** Split the text at '.', '?' or '!' while keeping the delimiters. */
-  let sentences = text.split(/([.?!])/);
-  let result = [];
-  for (let i = 0; i < sentences.length - 1; i += 2) {
-    result.push(sentences[i] + sentences[i + 1]);
-  }
-  return result.length > 0 ? result : sentences;
+  // let sentences = text.split(/([.?!])/);
+  // let result = [];
+  // for (let i = 0; i < sentences.length - 1; i += 2) {
+  //   result.push(sentences[i] + sentences[i + 1]);
+  // }
+  // return result.length > 0 ? result : sentences;
+  const doc = nlp(text);
+  const sentences = doc.sentences().out('array');
+  console.log("Sentences:", sentences);
+  return sentences;
 }

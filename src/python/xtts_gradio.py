@@ -341,8 +341,8 @@ async def async_logic(data) :
 # Define a proper function for periodic reset
 def periodic_reset():
     while True:
-        time.sleep(5)
-        reset_frequency_after_inactivity(5)
+        time.sleep(6)
+        reset_frequency_after_inactivity(6)
 
 # Start the thread with the periodic reset function
 threading.Thread(target=periodic_reset, daemon=True).start()
