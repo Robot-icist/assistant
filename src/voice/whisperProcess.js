@@ -13,11 +13,12 @@ const pythonScriptPath = path.resolve(
   __dirname,
   "../python/whisper_streaming_web/whisper_fastapi_online_server.py"
 );
+const _port = 10000;
 const args = [
   "--host",
   "0.0.0.0",
   "--port",
-  "10000",
+  _port,
   "--min-chunk-size",
   "1",
   "--buffer_trimming_sec",
@@ -40,7 +41,7 @@ class WhisperProcess {
     this.timeout = null;
     this.timeoutCount = 0;
     this.activityCheckIntervalId = null; // Store the interval id to clear it later
-    killProcessByPort(10000).catch(() => {});
+    killProcessByPort(_port).catch(() => {});
   }
 
   start() {
@@ -141,7 +142,7 @@ class WhisperProcess {
   stop() {
     this._stopActivityCheck(); // Stop the activity check before stopping the process
     if (this.process) {
-      killProcessByPort(10000).catch(() => {});
+      killProcessByPort(_port).catch(() => {});
       this.controller.abort();
       this.process.kill();
       this.process = null;

@@ -48,7 +48,10 @@ export const startWs = () => {
     ws.on("message", async function message(data, isBinary) {
       try {
         // console.log(data.toString());
-        console.log("ws received isBinary: ", isBinary, "isWav: ", isWav(data), "isMp4: ", isMp4(data), "isImage: ", isImage(data));
+        console.log("ws received isBinary: ", isBinary, 
+          "isWav: ", isWav(data), 
+          "isMp4: ", isMp4(data), 
+          "isImage: ", isImage(data));
         console.log(typeof data);
         console.log("url:", req.url);
         if (!isBinary) {
@@ -82,7 +85,7 @@ export const startWs = () => {
               await speakWithVideo(`video${new Date().toUTCString()}`, null, data);
             }
           }
-          else if(isImage(data) && getProcessing())
+          else if(isImage(data))
             await logic(
               getLang() == "fr"
                 ? "Ton seul et unique but est de decrire ce que tu vois dans cette image rapidement et concentre toi sur ça et rien d'autre"
@@ -152,5 +155,15 @@ const isWav = (byteArray) => {
     }
     return null;
   }
+
+  const isPcm = (byteArray) => {
+    // Exclude known formats
+    if (isWav(byteArray) || isMp4(byteArray) || isImage(byteArray)) return false;
+    // Check if length is a multiple of 2 (16-bit PCM)
+    if (byteArray.length % 2 !== 0) return false;
+    // Optionally, check for "silence" or "audio-like" data patterns
+    // but this is not reliable for all cases
+    return true;
+  };
 
 startWs();

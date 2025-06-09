@@ -86,6 +86,7 @@ export const setEvil = (val) => {
 };
 
 runPowerShellAsAdmin(path.resolve(__dirname, "./src/llm/unload.ps1"));
+runExecutableWithArgs("taskkill",["/f", "/im", "python.exe"], null, false)
 
 if (process.env.GLOBAL) {
   (async () => await tunnel())();
@@ -103,7 +104,8 @@ if(process.env.VIDEO && process.env.SADTALKER === "true"){
   sadTalkerProcess.start();   
 }
 
-runExecutableWithArgs("C:/Users/Gille/AppData/Local/Programs/@comfyorgcomfyui-electron/ComfyUI.exe", []);
+runExecutableWithArgs("ComfyUI.exe", []);
+runExecutableWithArgs("PowerToys.Awake.exe", ["--display-on",  "true"]);
 // preventSleep.enable();
 
 // Graceful shutdown on interrupt signal

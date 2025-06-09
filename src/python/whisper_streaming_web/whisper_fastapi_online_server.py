@@ -214,23 +214,41 @@ logger.info("WHISPER Service Ready")
 with open("web/live_transcription.html", "r", encoding="utf-8") as f:
     html = f.read()
 
-async def start_ffmpeg_decoder():
+def str2bool(v):
+    return str(v).lower() in ("yes", "true", "t", "1")
+
+async def start_ffmpeg_decoder(android = False):
     """
     Start an FFmpeg process in async streaming mode that reads WebM from stdin
     and outputs raw s16le PCM on stdout. Returns the process object.
     """
-    process = (
-        ffmpeg.input("pipe:0", format="webm")
-        .output(
-            "pipe:1",
-            format="s16le",
-            acodec="pcm_s16le",
-            ac=CHANNELS,
-            ar=str(SAMPLE_RATE),
+    process = None
+    if android :
+        process = (
+            ffmpeg.input("pipe:0", format="s16le", acodec="pcm_s16le", ac=CHANNELS, ar=str(SAMPLE_RATE))
+            .output(
+                "pipe:1",
+                format="s16le",
+                acodec="pcm_s16le",
+                ac=CHANNELS,
+                ar=str(SAMPLE_RATE),
+            )
+            .run_async(pipe_stdin=True, pipe_stdout=True, pipe_stderr=True, quiet=True)
         )
-        .run_async(pipe_stdin=True, pipe_stdout=True, pipe_stderr=True, quiet=True)
-    )
+    else : 
+        process = (
+            ffmpeg.input("pipe:0", format="webm")
+            .output(
+                "pipe:1",
+                format="s16le",
+                acodec="pcm_s16le",
+                ac=CHANNELS,
+                ar=str(SAMPLE_RATE),
+            )
+            .run_async(pipe_stdin=True, pipe_stdout=True, pipe_stderr=True, quiet=True)
+        )
     return process
+    
 
 def poll(ffmpeg_process): 
     try:
@@ -470,8 +488,11 @@ async def get():
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket connection with IP filtering."""
     client_ip = websocket.client.host.rsplit(":", 1)[-1]
+    query_params = dict(websocket.query_params)
     print(websocket)
     print(client_ip)
+    print(query_params) 
+    print(str2bool(query_params.get("android")))
     if not is_ip_allowed(client_ip):
         await websocket.close(code=1008)  # Close WebSocket with "Policy Violation"
         return
@@ -487,7 +508,7 @@ async def websocket_endpoint(websocket: WebSocket):
     
     online = None
 
-    async def restart_ffmpeg():
+    async def restart_ffmpeg(android=False):
         nonlocal ffmpeg_process, online, pcm_buffer
         if ffmpeg_process:
             try:
@@ -497,7 +518,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 await asyncio.wait_for(loop.run_in_executor(None, ffmpeg_process.wait), timeout=1)
             except (Exception, TimeoutError) as e:
                 logger.warning(f"Error killing FFmpeg process: {e}")
-        ffmpeg_process = await start_ffmpeg_decoder()
+        ffmpeg_process = await start_ffmpeg_decoder(android=android)
         ffmpeg_poll = threading.Thread(target=poll, args=(ffmpeg_process,))
         ffmpeg_poll.start()
 
@@ -509,7 +530,7 @@ async def websocket_endpoint(websocket: WebSocket):
         await shared_state.reset()
         logger.info("FFmpeg process started.")
 
-    await restart_ffmpeg()
+    await restart_ffmpeg(str2bool(query_params.get("android", False)))
 
     tasks = []    
     if args.transcription and online:

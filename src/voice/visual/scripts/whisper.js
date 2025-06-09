@@ -221,7 +221,7 @@ function setupWhisperWebSocket() {
           if (buffer_transcription == "")
             timeout = setTimeout(async () => {
               if (callback) callback(null, textContent);
-            }, 750);
+            }, 500);
         }
       });
       hideLLMText();

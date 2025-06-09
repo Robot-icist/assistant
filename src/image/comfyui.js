@@ -4,10 +4,138 @@ import fetch from "node-fetch";
 import axios from "axios";
 import { sendToAll } from "../global/ws.js";
 
-const payload = {prompt: {
+// const payload = {prompt: {
+//     "3": {
+//       "inputs": {
+//         "seed": 261660645921551,
+//         "steps": 30,
+//         "cfg": 7,
+//         "sampler_name": "dpmpp_2m",
+//         "scheduler": "karras",
+//         "denoise": 1,
+//         "model": [
+//           "11",
+//           0
+//         ],
+//         "positive": [
+//           "6",
+//           0
+//         ],
+//         "negative": [
+//           "7",
+//           0
+//         ],
+//         "latent_image": [
+//           "5",
+//           0
+//         ]
+//       },
+//       "class_type": "KSampler",
+//       "_meta": {
+//         "title": "KSampler"
+//       }
+//     },
+//     "4": {
+//       "inputs": {
+//         "ckpt_name": "realisticVisionV60B1_v51HyperVAE.safetensors"
+//       },
+//       "class_type": "CheckpointLoaderSimple",
+//       "_meta": {
+//         "title": "Charger Point de Contrôle"
+//       }
+//     },
+//     "5": {
+//       "inputs": {
+//         "width": 768,
+//         "height": 768,
+//         "batch_size": 1
+//       },
+//       "class_type": "EmptyLatentImage",
+//       "_meta": {
+//         "title": "Image Latente Vide"
+//       }
+//     },
+//     "6": {
+//       "inputs": {
+//         "text": "upperbody shot, 1girl,solo,chibi,long hairs, happy, laugh, hugging a teddy bear, looking at viewers, dancing stand, cute, soft color, flowers in background, many flowers, among flowers, best quality, highres, delicate details,",
+//         "clip": [
+//           "11",
+//           1
+//         ]
+//       },
+//       "class_type": "CLIPTextEncode",
+//       "_meta": {
+//         "title": "CLIP Text Encode (Prompt)"
+//       }
+//     },
+//     "7": {
+//       "inputs": {
+//         "text": "(worst quality, low quality:1.4), (bad anatomy), text, error, missing fingers, extra digit, fewer digits, cropped, jpeg artifacts, signature, watermark, username, blurry, deformed face",
+//         "clip": [
+//           "11",
+//           1
+//         ]
+//       },
+//       "class_type": "CLIPTextEncode",
+//       "_meta": {
+//         "title": "CLIP Text Encode (Prompt)"
+//       }
+//     },
+//     "8": {
+//       "inputs": {
+//         "samples": [
+//           "3",
+//           0
+//         ],
+//         "vae": [
+//           "4",
+//           2
+//         ]
+//       },
+//       "class_type": "VAEDecode",
+//       "_meta": {
+//         "title": "VAE Decode"
+//       }
+//     },
+//     "9": {
+//       "inputs": {
+//         "filename_prefix": "2loras_test_",
+//         "images": [
+//           "8",
+//           0
+//         ]
+//       },
+//       "class_type": "SaveImage",
+//       "_meta": {
+//         "title": "Enregistrer Image"
+//       }
+//     },
+//     "11": {
+//       "inputs": {
+//         "lora_name": "blindbox_v1_mix.safetensors",
+//         "strength_model": 0.75,
+//         "strength_clip": 1,
+//         "model": [
+//           "4",
+//           0
+//         ],
+//         "clip": [
+//           "4",
+//           1
+//         ]
+//       },
+//       "class_type": "LoraLoader",
+//       "_meta": {
+//         "title": "Charger LoRA"
+//       }
+//     }
+//   }};
+
+const payload = {prompt:
+  {
     "3": {
       "inputs": {
-        "seed": 261660645921551,
+        "seed": 701239084026679,
         "steps": 30,
         "cfg": 7,
         "sampler_name": "dpmpp_2m",
@@ -101,7 +229,7 @@ const payload = {prompt: {
       "inputs": {
         "filename_prefix": "2loras_test_",
         "images": [
-          "8",
+          "14",
           0
         ]
       },
@@ -112,7 +240,7 @@ const payload = {prompt: {
     },
     "11": {
       "inputs": {
-        "lora_name": "blindbox_v1_mix.safetensors",
+        "lora_name": "Hyper-FLUX.1-dev-16steps-lora.safetensors",
         "strength_model": 0.75,
         "strength_clip": 1,
         "model": [
@@ -128,8 +256,21 @@ const payload = {prompt: {
       "_meta": {
         "title": "Charger LoRA"
       }
+    },
+    "14": {
+      "inputs": {
+        "value": [
+          "8",
+          0
+        ]
+      },
+      "class_type": "UnloadAllModels",
+      "_meta": {
+        "title": "UnloadAllModels"
+      }
     }
-  }};
+  }
+}
 
 export const comfyClient = new Client({
     api_host: "127.0.0.1:7999",

@@ -53,6 +53,12 @@ export const tunnel = async () => {
         "AND",
         "1234",
         `${subdomain}.pagekite.me`,
+        // "AND",
+        // "7860",
+        // `xtts-${subdomain}.pagekite.me`,
+        // "AND",
+        // "7861",
+        // `sadtalker-${subdomain}.pagekite.me`,
         // "+ip/92.184.112=ok",
       ],
       console.log
