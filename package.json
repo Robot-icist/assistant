@@ -4,6 +4,9 @@
   "description": "",
   "main": "index.js",
   "type": "module",
+  "bin": {
+    "assistant": "index.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dotnet-publish": "dotnet publish -r win-x64 --self-contained ./src/dotnet/PorcupineDotnet && dotnet publish -r linux-x64 --self-contained ./src/dotnet/PorcupineDotnet && dotnet publish -r osx-x64 --self-contained ./src/dotnet/PorcupineDotnet",
@@ -44,7 +47,7 @@
     "@vladmandic/face-api": "^1.7.14",
     "axios": "^1.7.9",
     "camera-capture": "^0.0.11",
-    "canvas": "^2.11.2",
+    "canvas": "^3.1.0",
     "compromise": "^14.14.4",
     "cross-env": "^7.0.3",
     "dotenv": "^16.4.7",

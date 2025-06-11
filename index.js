@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { hotword, customHotword } from "./src/voice/hotword.js";
 // import {
 //   startMicRecognition,
@@ -53,18 +55,24 @@ import {
   runPowerShellAsAdmin,
 } from "./src/global/processRunner.js";
 import { tunnel } from "./src/global/tunnel.js";
-import "dotenv/config";
 import smartlife from "./src/automation/smartlife.js";
 import { whisper } from "./src/voice/whisperProcess.js";
 import { detect } from "tinyld";
 import { eld } from "eld";
 import { mapLanguageToCode } from "./src/global/mapping.js";
 import { comfyClient, generateImage } from "./src/image/comfyui.js";
-import path from "path";
-import { fileURLToPath } from "url";
 import { xttsProcess } from "./src/voice/xttsProcess.js";
 
+import path from "path";
+import { fileURLToPath } from "url";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name of the directory
+
+console.log("Starting the application...", __dirname);
+
+import dotenv from "dotenv"
+
+dotenv.config({ path: path.resolve(__dirname, "./.env") });
 
 // Set the default encoding for Node.js process
 process.stdin.setDefaultEncoding("utf8");
