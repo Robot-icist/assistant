@@ -333,7 +333,7 @@ with gr.Blocks(theme=gr.themes.Default()) as app:
     # )
 
 async def async_logic(data) :
-    global client 
+    global client
     client = await websockets.connect("ws://localhost:80")
     if(data is not None):
         await client.send(data)

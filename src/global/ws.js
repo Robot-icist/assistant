@@ -78,7 +78,7 @@ export const startWs = () => {
             const objectsBuffer = await detect_objects_on_image(faceBuffer);
             sendToAll(objectsBuffer, true);
           } else
-          if(isWav(data) && getProcessing()) {
+          if(isWav(data) && getProcessing()) { //if xtts sends wav chunks
             if(!getVideo())
               sendToAll(data, true);
             else{
@@ -88,8 +88,8 @@ export const startWs = () => {
           else if(isImage(data))
             await logic(
               getLang() == "fr"
-                ? "Ton seul et unique but est de decrire ce que tu vois dans cette image rapidement et concentre toi sur ça et rien d'autre"
-                : "Your sole and only goal is to describe what you see in this image shortly and focus on that and nothing else",
+                ? "Je te connais déjà, Ton seul et unique but est de decrire ce que tu vois dans cette image rapidement et concentre toi sur ça et rien d'autre"
+                : "I know you already, Your sole and only goal is to describe what you see in this image shortly and focus on that and nothing else",
               data,
               ws
             );

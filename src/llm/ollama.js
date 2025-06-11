@@ -95,7 +95,7 @@ export async function ollamaChat(text, speak, model = llm) {
 
     // Add user input to conversation history
     if (!google) {
-      if (conversationHistory.length > 5)
+      if (conversationHistory.length > 100)
         conversationHistory = conversationHistory.slice(0, 1);
       if (conversationHistory[0].content !== systemInstructions()) {
         console.log("prompt changed");
@@ -107,7 +107,7 @@ export async function ollamaChat(text, speak, model = llm) {
       }
       conversationHistory.push({ role: "user", content: text });
     } else {
-      if (conversationHistoryGemini.length > 10)
+      if (conversationHistoryGemini.length > 100)
         conversationHistoryGemini = conversationHistoryGemini.slice(0, 1);
       conversationHistoryGemini.push({ role: "user", parts: [{ text }] });
     }

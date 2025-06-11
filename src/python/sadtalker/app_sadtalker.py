@@ -59,7 +59,7 @@ def sadtalker_demo(checkpoint_path='checkpoints', config_path='src/config', warp
             batch_size = gr.Slider(minimum=1, maximum=16, step=1, label="Batch Size", value=16)
             size_of_image = gr.Slider(minimum=256, maximum=1024, step=64, label="Image Size", value=256)
             length_of_audio = gr.Slider(minimum=1, maximum=300, step=1, label="Audio Length (seconds)", value=10)
-            facerender = gr.Radio(['pirender', 'facevid2vid'], value='pirender', label='Face Render')
+            facerender = gr.Radio(['pirender', 'facevid2vid', '3D'], value='pirender', label='Face Render')
 
         submit = gr.Button("Generate")
         gen_video = gr.Video(label="Generated video", format="mp4")

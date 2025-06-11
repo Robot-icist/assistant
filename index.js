@@ -146,7 +146,9 @@ export const logic = async (recognizedText, bytes = null, ws = null) => {
   if (recognizedText === "" | recognizedText === null) return;
   if (recognizedText.includes("stop")) {
     return Stop();
-    kill();
+  }
+  if (recognizedText.includes("kill")) {
+    Kill();
   }
   while (processing) await sleep(100);
   setCurrentRequestWs(ws);

@@ -11,6 +11,8 @@ from src.utils.init_path import init_path
 
 from pydub import AudioSegment
 
+from time import strftime
+
 
 def mp3_to_wav(mp3_filename,wav_filename,frame_rate):
     mp3_file = AudioSegment.from_file(file=mp3_filename)
@@ -60,7 +62,8 @@ class SadTalker():
             self.animate_from_coeff = AnimateFromCoeff_PIRender(self.sadtalker_paths, self.device)
             facerender = 'pirender'
         else:
-            raise(RuntimeError('Unknown model: {}'.format(facerender)))
+            self.animate_from_coeff = AnimateFromCoeff_PIRender(self.sadtalker_paths, self.device)
+            facerender = 'pirender'
             
 
         time_tag = str(uuid.uuid4())
@@ -157,6 +160,12 @@ class SadTalker():
         video_name = data['video_name']
         shutil.move(return_path, save_dir+'.mp4')
         print(f'The generated video is named {video_name} in {save_dir}')
+
+        if facerender == '3D':
+            from src.face3d.visualize import gen_composed_video
+            os.makedirs('.\\3D', exist_ok=True)
+            args = None
+            gen_composed_video(args, self.device, first_coeff_path, coeff_path, audio_path, os.path.join('..\\3D', f"generated_video_3dface_{strftime('%Y%m%d_%H%M%S')}.mp4"))
 
         del self.preprocess_model
         del self.audio_to_coeff
