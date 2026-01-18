@@ -26,7 +26,8 @@ const ollamaInstance = new Ollama();
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-const geminiModel = "gemini-2.0-flash-lite"; //"gemini-1.5-flash";
+const geminiModel = "gemma-3-27b-it"; 
+// const geminiModel = "gemini-2.5-flash-lite"; 
 
 let google = process.env.GOOGLE;
 
@@ -53,12 +54,12 @@ let screenWidth = 0;
 
 const systemInstructions = () =>
   getLang() == "fr"
-    ? `Tu t'appels ${getHotword()}. 
+    ? `Tu t'appels ${getHotword()}. Ne dis jamais ton nom.
           Tu es un assistant virtuel sur ordinateur, 
-          tu fais des petites phrases et tu réponds a toutes mes demandes` // et termine chacunes de tes réponses par le mot "Patron !".`
-    : `Your Name is ${getHotword()}. 
+          tu fais des petites phrases et tu réponds a toutes mes demandes avec efficacité.` // et termine chacunes de tes réponses par le mot "Patron !".`
+    : `Your Name is ${getHotword()}. Never say your name.
           You are a virtual assistant on a computer, 
-          you make small sentences and you reply to all my demands in the language I write to you.`; // and terminate every of your answers with the word "Boss !".`;
+          you make small sentences and you reply to all my demands in the language I write to you with efficiency.`; // and terminate every of your answers with the word "Boss !".`;
 
 // Initialize conversation history as an array of message objects
 let conversationHistory = [
@@ -138,12 +139,12 @@ export async function ollamaChat(text, speak, model = llm) {
     else {
       const gemini = genAI.getGenerativeModel({
         model: geminiModel,
-        systemInstruction: systemInstructions(),
+        // systemInstruction: systemInstructions(),
       });
       const chat = gemini.startChat({
         history: conversationHistoryGemini,
       });
-      const result = await chat.sendMessageStream(text, {
+      const result = await chat.sendMessageStream(systemInstructions() + text, {
         signal: abortController.signal,
       });
       stream = result.stream;
@@ -268,7 +269,7 @@ export async function ollamaVision(basePrompt, speak, bytes) {
     else {
       const gemini = genAI.getGenerativeModel({
         model: geminiModel,
-        systemInstruction: systemInstructions(),
+        // systemInstruction: systemInstructions(), //not supported for gemma
       });
       // const chat = gemini.startChat({
       //   history: conversationHistoryGemini,
@@ -280,12 +281,12 @@ export async function ollamaVision(basePrompt, speak, bytes) {
         const image = {
           inlineData: {
             data: Buffer.from(bytes).toString("base64"),
-            mimeType: "image/jpg",
+            mimeType: "image/jpeg",
           },
         };
         console.log(image);
         stream = (
-          await gemini.generateContentStream([basePrompt, image], {
+          await gemini.generateContentStream([systemInstructions() + " " +basePrompt, image], {
             signal: abortController.signal,
           })
         ).stream;

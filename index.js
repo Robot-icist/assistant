@@ -54,7 +54,7 @@ import {
   runExecutableWithArgs,
   runPowerShellAsAdmin,
 } from "./src/global/processRunner.js";
-import { tunnel } from "./src/global/tunnel.js";
+import { closeAllLocalTunnels , tunnel} from "./src/global/tunnel.js";
 import smartlife from "./src/automation/smartlife.js";
 import { whisper } from "./src/voice/whisperProcess.js";
 import { detect } from "tinyld";
@@ -62,6 +62,7 @@ import { eld } from "eld";
 import { mapLanguageToCode } from "./src/global/mapping.js";
 import { comfyClient, generateImage } from "./src/image/comfyui.js";
 import { xttsProcess } from "./src/voice/xttsProcess.js";
+import { chatterboxProcess } from "./src/voice/chatterboxProcess.js";
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -106,6 +107,7 @@ if (process.env.WHISPER) {
 
 if(process.env.TTS){ 
   xttsProcess.start();   
+  // chatterboxProcess.start();
 }
 
 if(process.env.VIDEO && process.env.SADTALKER === "true"){ 
@@ -127,6 +129,7 @@ process.on("SIGINT", async () => {
 
 export const Kill = async () => {
   Stop();
+  closeAllLocalTunnels();
   await new Promise((res, rej) => {
     exec("taskkill /f /im python.exe", (error, stdout, stderr) => {
       if (error) {

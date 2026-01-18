@@ -293,12 +293,12 @@ class WebSocketHandler {
     }
   }
 }
-const pageKite = true;
-const subdomain = "personai";
+const pageKite = false;
+const subdomain = "small-rain";
 if (pageKite) {
   WS = new WebSocketHandler(`wss://ws-${subdomain}.pagekite.me`);
   WS1 = new WebSocketHandler(`wss://ws-${subdomain}.pagekite.me/recognition`);
 } else {
-  WS = new WebSocketHandler(`wss://ws${subdomain}.loca.lt`);
-  WS1 = new WebSocketHandler(`wss://ws${subdomain}.loca.lt/recognition`);
+  WS = new WebSocketHandler(`wss://ws-${subdomain}.loca.lt`);
+  WS1 = new WebSocketHandler(`wss://ws-${subdomain}.loca.lt/recognition`);
 }
