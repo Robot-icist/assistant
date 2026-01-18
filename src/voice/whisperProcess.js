@@ -3,6 +3,7 @@ import EventEmitter from "events";
 import path from "path";
 import { fileURLToPath } from "url";
 import { killProcessByPort } from "../global/processRunner.js";
+import { restartLocalTunnel } from "../global/tunnel.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -67,6 +68,7 @@ class WhisperProcess {
       if (output.includes("WHISPER Service Ready")) {
         this.isReady = true;
         this._processQueue();
+        restartLocalTunnel(10000);  
         // this._startActivityCheck(); // Start the activity check when ready
       }
       // if (

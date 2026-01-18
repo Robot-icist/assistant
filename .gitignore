@@ -356,3 +356,5 @@ src/python/speech-driven-animation/sda/data/
 
 .node-persist/
 **/.node-persist/
+
+src/python/sadtalker/pytorch3d

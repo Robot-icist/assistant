@@ -5,10 +5,11 @@
   "main": "index.js",
   "type": "module",
   "bin": {
-    "assistant": "index.js"
+    "assistant": "cli.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "set-subdomain": "node src/global/set-subdomain.js",
     "dotnet-publish": "dotnet publish -r win-x64 --self-contained ./src/dotnet/PorcupineDotnet && dotnet publish -r linux-x64 --self-contained ./src/dotnet/PorcupineDotnet && dotnet publish -r osx-x64 --self-contained ./src/dotnet/PorcupineDotnet",
     "start": "npm run fr",
     "en": "cross-env LANG=en node index.js",
@@ -30,7 +31,8 @@
     "visual": "npm-run-all --parallel --print-label --race serve_visual waitAndShow",
     "vfrtts": "npm-run-all --parallel --print-label --race visual frtts",
     "vsfrtts": "npm-run-all --parallel --print-label --race serve_visual frtts",
-    "ventts": "npm-run-all --parallel --print-label --race visual entts"
+    "ventts": "npm-run-all --parallel --print-label --race visual entts",
+    "prevsfrtts": "npm run set-subdomain"
   },
   "author": "",
   "license": "ISC",

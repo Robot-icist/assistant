@@ -252,7 +252,8 @@
       let websocket = null;
       let recorder = null;
       let chunkDuration = 500;
-      let websocketUrl = "wss://whisper-person.pagekite.me/asr";
+      const subdomain = "small-rain";
+      let websocketUrl = `wss://${subdomain}.loca.lt/asr`;
       let userClosing = false;
 
       const statusText = document.getElementById("status");
