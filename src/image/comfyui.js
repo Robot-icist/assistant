@@ -5,13 +5,13 @@ import axios from "axios";
 import { sendToAll } from "../global/ws.js";
 
 const payload = {prompt:
- {
+  {
   "3": {
     "inputs": {
-      "seed": 812426485243358,
+      "seed": 367077539320964,
       "steps": 50,
-      "cfg": 7,
-      "sampler_name": "dpmpp_2m",
+      "cfg": 2,
+      "sampler_name": "dpmpp_sde_gpu",
       "scheduler": "karras",
       "denoise": 1,
       "model": [
@@ -58,7 +58,7 @@ const payload = {prompt:
   },
   "6": {
     "inputs": {
-      "text": "upperbody shot, 1girl,solo,chibi,long hairs, happy, laugh, hugging a teddy bear, looking at viewers, dancing stand, cute, soft color, flowers in background, many flowers, among flowers, best quality, highres, delicate details,",
+      "text": "RAW photo, subject, 8k uhd, dslr, soft lighting, high quality, film grain, Fujifilm XT3",
       "clip": [
         "4",
         1
@@ -71,7 +71,7 @@ const payload = {prompt:
   },
   "7": {
     "inputs": {
-      "text": "(worst quality, low quality:1.4), (bad anatomy), text, error, missing fingers, extra digit, fewer digits, cropped, jpeg artifacts, signature, watermark, username, blurry, deformed face",
+      "text": "(deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime), text, cropped, out of frame, worst quality, low quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, blurry, dehydrated, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck, UnrealisticDream",
       "clip": [
         "4",
         1
@@ -124,7 +124,7 @@ const payload = {prompt:
     }
   }
 }
-}
+};
 
 export const comfyClient = new Client({
     api_host: "127.0.0.1:7999",
@@ -138,7 +138,7 @@ export const comfyClient = new Client({
     comfyClient.connect();
     const prompt = JSON.parse(JSON.stringify(payload.prompt)); // Deep copy to avoid modifying the original
     // Set the text prompt for our positive CLIPTextEncode
-    prompt["6"]["inputs"]["text"] = text;
+    prompt["6"]["inputs"]["text"] += text;
     const resp = await comfyClient.enqueue_polling(prompt);
     console.log(resp);
     const url = resp.images[0].data;

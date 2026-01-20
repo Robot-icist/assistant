@@ -6,7 +6,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name 
 
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
-console.log(__dirname, 'env', process.env);
+// console.log(__dirname, 'env', process.env);
 
 let ips = process.env.ALLOWED_IPS;
 

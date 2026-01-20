@@ -9,8 +9,12 @@ import { runExecutableWithArgs } from "./processRunner.js";
 import ffmpeg from "fluent-ffmpeg";
 import os from "os";
 import { fileURLToPath } from "url";
+import dotenv from "dotenv"
+import nodemailer from 'nodemailer';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name of the directory
+
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 // Define the base directory for samples
 const baseSamplesDir = path.resolve(__dirname, "../"); // Base directory for all sample files
@@ -224,10 +228,36 @@ const createTempFileFromBuffer = async (buffer, extension = "wav") => {
   };
 };
 
+const sendEmail = async (to, subject, text) => {
+  console.log(`Preparing to send email to ${to} with subject "${subject}" with text: ${text} and env user: ${process.env.EMAIL_USER} with pass: ${process.env.EMAIL_PASS} `);
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  });
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to,
+    subject,
+    text
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('Email sent successfully');
+  } catch (error) {
+    console.error('Error sending email:', error);
+  }
+};
+
 export {
   registerFace,
   registerHotword,
   registerVoiceClone,
   createTempFileFromBuffer,
   createTempFileName,
+  sendEmail,
 };

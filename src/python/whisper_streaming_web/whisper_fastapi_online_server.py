@@ -36,7 +36,7 @@ from dotenv import load_dotenv
 # Load the .env file
 load_dotenv()
 
-torch.cuda.set_per_process_memory_fraction(0.6, device=0)
+# torch.cuda.set_per_process_memory_fraction(0.6, device=0)
 
 def format_time(seconds):
     return str(timedelta(seconds=int(seconds)))
@@ -483,6 +483,22 @@ async def filter_http_requests(request: Request, call_next):
 @app.get("/")
 async def get():
     return HTMLResponse(html)
+
+@app.websocket("/")
+async def websocket_default(websocket: WebSocket):
+    """WebSocket connection with IP filtering."""
+    client_ip = websocket.client.host.rsplit(":", 1)[-1]
+    query_params = dict(websocket.query_params)
+    print(websocket)
+    print(client_ip)
+    print(query_params) 
+    print(str2bool(query_params.get("android")))
+    if not is_ip_allowed(client_ip):
+        await websocket.close(code=1008)  # Close WebSocket with "Policy Violation"
+        return
+    await websocket.accept()
+    logger.info("WebSocket connection opened.")
+    await websocket.send_text("WebSocket connection established.")
 
 @app.websocket("/asr")
 async def websocket_endpoint(websocket: WebSocket):

@@ -56,6 +56,8 @@ warnings.filterwarnings("ignore")
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using device: {device}", flush=True)
 
+# torch.manual_seed(42)
+
 # if device == "cuda":
 #     print("Setting CUDA memory fraction...")
 #     try:

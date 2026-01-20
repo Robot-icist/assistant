@@ -101,4 +101,4 @@ export function runPowerShellAsAdmin(scriptPath) {
   });
 }
 
-export default { runExecutableWithArgs, runPowerShellAsAdmin };
+export default { runExecutableWithArgs, runPowerShellAsAdmin, killProcessByPort };

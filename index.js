@@ -54,7 +54,7 @@ import {
   runExecutableWithArgs,
   runPowerShellAsAdmin,
 } from "./src/global/processRunner.js";
-import { closeAllLocalTunnels , tunnel} from "./src/global/tunnel.js";
+import { closeAllLocalTunnels , tunneling, subdomain} from "./src/global/tunnel.js";
 import smartlife from "./src/automation/smartlife.js";
 import { whisper } from "./src/voice/whisperProcess.js";
 import { detect } from "tinyld";
@@ -98,7 +98,7 @@ runPowerShellAsAdmin(path.resolve(__dirname, "./src/llm/unload.ps1"));
 runExecutableWithArgs("taskkill",["/f", "/im", "python.exe"], null, false)
 
 if (process.env.GLOBAL) {
-  (async () => await tunnel())();
+  (async () => await tunneling(subdomain))();
 }
 
 if (process.env.WHISPER) {
