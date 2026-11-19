@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from "electron";
 import WebSocket, { WebSocketServer } from "ws";
+import "dotenv/config";
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -11,7 +12,7 @@ const createWindow = () => {
   });
 
   try {
-    win.loadURL("http://localhost:1234");
+    win.loadURL(`http://localhost:${process.env.WEB_PORT || 1234}`);
     // win.loadFile("./bubble.html");
   } catch (error) {
     win.close();

@@ -10,6 +10,7 @@ export const sendParams = (text = null) => {
       hotword: params.wakeword.toLowerCase(),
       video: params.video,
       google: params.google,
+      llmProvider: params.llmProvider,
       llm: params.llm,
       keepInMemory: params.keepInMemory,
       D3: params.D3,
@@ -25,9 +26,9 @@ export const stopPlaying = () => {
 };
 
 export const stopProcessing = () => {
+  WS.clearMediaQueue();
   stopPlaying();
   stopRecognition();
-  WS.mediaQueue = [];
   document.getElementById("loader")?.remove();
   document.getElementById("stop")?.remove();
   sendParams("stop");
@@ -177,7 +178,7 @@ window.addEventListener("load", () => {
     if (!loading && WS.mediaQueue.length == 0) hideStopButton();
   });
   WS.events.subscribe("stop", () => {
-    WS.mediaQueue = [];
+    WS.clearMediaQueue();
     stopPlaying();
     if (!loading) hideStopButton();
     // changeColor(getParams().alwaysOn ? "gold" : "deepskyblue");

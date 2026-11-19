@@ -12,9 +12,12 @@ const whisperHtmlPath = path.resolve(__dirname, '../python/whisper_streaming_web
 
 let subdomain = process.env.SUBDOMAIN;
 
-const generateRandomSubdomain = () => {   
+const generateRandomSubdomain = (force = false, requestedSubdomain = null) => {
   subdomain = process.env.SUBDOMAIN;
-  if (!subdomain) {
+  if (requestedSubdomain) {
+    subdomain = requestedSubdomain.replace(/\.$/, "");
+    console.log(`Using requested subdomain: ${subdomain}`);
+  } else if (!subdomain || force) {
     // Generate a random intelligible subdomain
     const adjectives = ['happy', 'sad', 'big', 'small', 'fast', 'slow', 'bright', 'dark', 'loud', 'quiet', 'hot', 'cold', 'soft', 'hard', 'sweet', 'sour', 'red', 'blue', 'green', 'yellow', 'undefined'];
     const nouns = ['cat', 'dog', 'house', 'car', 'tree', 'river', 'mountain', 'ocean', 'bird', 'fish', 'sun', 'moon', 'star', 'cloud', 'wind', 'rain', 'snow', 'fire', 'earth', 'sky', 'ai', 'web', 'bot', 'app', 'net', 'code', 'data', 'cloud', 'server', 'client', 'api', 'hub', 'node', 'link', 'gate', 'port', 'stream', 'wave', 'pulse', 'core'];
@@ -25,21 +28,21 @@ const generateRandomSubdomain = () => {
     subdomain = `${adj}-${noun0}`;
     console.log(`Generated subdomain: ${subdomain}`);
 
-  //   // Check if .env exists
-  //   let envContent = '';
-  //   if (fs.existsSync(envPath)) {
-  //     envContent = fs.readFileSync(envPath, 'utf8');
-  //   }
+    // // Check if .env exists
+    // let envContent = '';
+    // if (fs.existsSync(envPath)) {
+    //   envContent = fs.readFileSync(envPath, 'utf8');
+    // }
 
-  //   // Check if SUBDOMAIN is already in .env
-  //   if (!envContent.includes('SUBDOMAIN=')) {
-  //     envContent += `\nSUBDOMAIN=${subdomain}\n`;
-  //     fs.writeFileSync(envPath, envContent.trim() + '\n');
-  //     console.log('Added SUBDOMAIN to .env');
-  //   } else {
-  //     console.log('SUBDOMAIN already in .env, using existing');
-  //     // If it exists but not loaded, perhaps reload, but for now, assume it's set
-  //   }
+    // // Check if SUBDOMAIN is already in .env
+    // if (!envContent.includes('SUBDOMAIN=')) {
+    //   envContent += `\nSUBDOMAIN=${subdomain}\n`;
+    //   fs.writeFileSync(envPath, envContent.trim() + '\n');
+    //   console.log('Added SUBDOMAIN to .env');
+    // } else {
+    //   console.log('SUBDOMAIN already in .env, using existing');
+    //   // If it exists but not loaded, perhaps reload, but for now, assume it's set
+    // }
   } else {
     console.log(`Using subdomain from env: ${subdomain}`);
   }
@@ -53,7 +56,7 @@ const replaceSubdomain = (filePath) => {
     const match = content.match(/(export const |const |let )subdomain = "([^"]+)"/);
     if (match) {
       const currentSubdomain = match[2];
-      content = content.replace(new RegExp(currentSubdomain, 'g'), subdomain);
+      content = content.split(currentSubdomain).join(subdomain);
       fs.writeFileSync(filePath, content);
       console.log(`Replaced subdomain in ${path.basename(filePath)} from ${currentSubdomain} to ${subdomain}`);
     } else {
@@ -64,12 +67,15 @@ const replaceSubdomain = (filePath) => {
   }
 };
 
-export const setSubdomain = () => {
-  generateRandomSubdomain();
+export const setSubdomain = (force = false, requestedSubdomain = null) => {
+  generateRandomSubdomain(force, requestedSubdomain);
   replaceSubdomain(tunnelPath);
   replaceSubdomain(wsHandlerPath);
   replaceSubdomain(whisperHtmlPath);
   return subdomain;
 }
 
-setSubdomain();
+// Only run if this file is executed directly (not imported)
+if (fileURLToPath(import.meta.url) === process.argv[1]) {
+  setSubdomain();
+}

@@ -10,9 +10,10 @@ import WebSocket from 'ws';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name of the directory
 
-export const pageKite = false;
+export const globalMode = process.env.GLOBAL?.toLowerCase() === "true";
+export const pageKite = (process.env.TUNNEL_PROVIDER || "pagekite").toLowerCase() === "pagekite";
 
-export let subdomain = "green-earth";
+export let subdomain = process.env.SUBDOMAIN || "robotai";
 
 let newSubdomainSet = false;
 let isRegenerating = false;
@@ -45,7 +46,7 @@ export const closeAllLocalTunnels = async () => {
  *  - a port number
  * Returns a Promise that resolves to the new tunnel object when recreated, or rejects on timeout.
  */
-export const restartLocalTunnel = async (identifier, { timeoutMs = 15000 } = {}) => {
+export const restartLocalTunnel = async (identifier, { timeoutMs = 30000 } = {}) => {
   if (!identifier) return null;
 
   let entry;
@@ -134,8 +135,11 @@ export const makeLocalTunnel = async (port = 80, subdomain = subdomain, periodic
             const ws = new WebSocket(wsUrl);
             await new Promise((resolve) => {
               ws.onopen = () => { active = true; ws.close(); resolve(); };
-              ws.onerror = () => resolve();
-              setTimeout(() => { ws.close(); resolve(); }, 3000); 
+              ws.onerror = (e) => {
+                console.log(e.message);
+                resolve();
+              }
+              setTimeout(() => { ws.close(); resolve(); }, 6000); 
             });
           } catch (e) {}
         }
@@ -165,7 +169,7 @@ export const makeLocalTunnel = async (port = 80, subdomain = subdomain, periodic
     // tunnels are closed
     clearReopenTimer();
     removeActiveTunnel(tunnel);
-    console.log("closed local tunnel, retrying...", tunnel.url, retry);
+    console.log("closed local tunnel, retrying...",port, tunnel.url, retry);
     // small delay to avoid tight restart loops
     if (!suppressLocalTunnelReopen) {
       setTimeout(() => makeLocalTunnel(port, subdomain, periodicClose, reopenMs, retry), 1000);
@@ -194,7 +198,7 @@ export const makeLocalTunnel = async (port = 80, subdomain = subdomain, periodic
       suppressLocalTunnelReopen = true;
       console.log(`Subdomain mismatch for port ${port}, regenerating subdomain`);
       closeAllLocalTunnels();
-      subdomain = setSubdomain();
+      subdomain = setSubdomain(true);
       setTimeout(async() => {
         newSubdomainSet = true;
         suppressLocalTunnelReopen = false;
@@ -207,20 +211,26 @@ export const makeLocalTunnel = async (port = 80, subdomain = subdomain, periodic
   return tunnel;
 };
 
-export const tunneling = async (subdomain) => {
+export const tunneling = async (_subdomain = subdomain) => {
+  if (!globalMode) {
+    console.log("GLOBAL is disabled; using localhost service URLs.");
+    return null;
+  }
+
   if (pageKite) {
     runExecutableWithArgs(
-      "python",
+      "python3",
       [
-        path.resolve(__dirname, "../python/pagekite.py"),
+        // path.resolve(__dirname, "../python/pagekite.py"),
+        "C:\\Users\\Gille\\Desktop\\pagekite.py",
         "80",
-        `ws-${subdomain}.pagekite.me`,
+        `ws-${_subdomain}.pagekite.me`,
         "AND",
         "10000",
-        `whisper-${subdomain}.pagekite.me`,
+        `whisper-${_subdomain}.pagekite.me`,
         "AND",
         "1234",
-        `${subdomain}.pagekite.me`,
+        `${_subdomain}.pagekite.me`,
         // "AND",
         // "7860",
         // `xtts-${subdomain}.pagekite.me`,
@@ -232,15 +242,20 @@ export const tunneling = async (subdomain) => {
       console.log
     );
   } else {
-    const minutes = 0.5;
-    const tunnel1 = await makeLocalTunnel(1234, `${subdomain}`,true, minutes*60*1000);
-    const tunnel2 = await makeLocalTunnel(80, `ws-${subdomain}`,true, minutes*60*1000);
-    const tunnel3 = await makeLocalTunnel(10000, `whisper-${subdomain}`,true, minutes*60*1000);
+    const minutes = 1;
+    const tunnel1 = await makeLocalTunnel(1234, `${_subdomain}`,true, minutes*60*1000);
+    const tunnel2 = await makeLocalTunnel(80, `ws-${_subdomain}`,true, minutes*60*1000);
+    const tunnel3 = await makeLocalTunnel(10000, `whisper-${_subdomain}`,true, minutes*60*1000);
     if (tunnel1 && tunnel2 && tunnel3 && newSubdomainSet) {
       setTimeout(async () => {
         const activePorts = activeLocalTunnels.map(e => e.port);
         if (activePorts.includes(1234) && activePorts.includes(80) && activePorts.includes(10000)) {
-          await sendEmail("gillesponspro@gmail.com", "New LocalTunnel Subdomain Activated", `Your assistant is now accessible with the new subdomain: ${subdomain}\nMain URL: https://${subdomain}.loca.lt`);
+          await sendEmail("gillesponspro@gmail.com", 
+            "New LocalTunnel Subdomain Activated", 
+            `Your assistant is now accessible with the new subdomain: ${_subdomain}\n
+              Main URL: https://${_subdomain}.loca.lt \n
+              WS URL: ws-${_subdomain}.loca.lt \n`
+          );
           newSubdomainSet = false;
         }
       }, 3000);

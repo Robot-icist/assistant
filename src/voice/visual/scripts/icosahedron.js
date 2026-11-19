@@ -41,6 +41,7 @@ const params = {
   size: 4,
   wakeword: "Jarvis",
   model: "vosk-model-small-fr-pguyot-0.3.tar.gz",
+  llmProvider: "ollama",
   llm: "llama3.2:3b",
   speaker: 1,
   video: false,
@@ -277,17 +278,38 @@ assistantFolder
     params.model = value;
   });
 
+let llmController = assistantFolder.add(params, "llm", [params.llm]);
+llmController.onChange((value) => {
+  params.llm = value;
+});
+
+const updateLLMModels = async () => {
+  try {
+    const response = await fetch(
+      `/api/models?provider=${encodeURIComponent(params.llmProvider)}`
+    );
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Could not load models");
+    if (result.models.length === 0) throw new Error("No models found for provider");
+
+    llmController?.remove();
+    if (!result.models.includes(params.llm)) params.llm = result.models[0];
+    llmController = assistantFolder.add(params, "llm", result.models);
+    llmController.onChange((value) => {
+      params.llm = value;
+    });
+  } catch (error) {
+    llmController?.remove();
+    params.llm = "";
+    llmController = null;
+    console.warn(`Could not load ${params.llmProvider} models:`, error);
+  }
+};
+
 assistantFolder
-  .add(params, "llm", [
-    "llama3.2:3b",
-    "artifish/llama3.2-uncensored",
-    "qwen2.5",
-    "gemma3:4b",
-    "deepseek-r1:7b",
-  ])
-  .onChange(async (value) => {
-    params.llm = value;
-  });
+  .add(params, "llmProvider", ["ollama", "llamacpp", "lmstudio"])
+  .onChange(updateLLMModels);
+updateLLMModels();
 assistantFolder.add(params, "speaker", 0, 14, 1).onChange((value) => {
   params.speaker = value;
 });

@@ -159,6 +159,7 @@ const SPEAK_INTERVAL = 5000; // Minimum interval between speaks in milliseconds
 
 // Analyze and recognize faces in an image
 export async function analyzeAndRecognize(imagePathOrBuffer, faceMatcher) {
+  console.log("Analyzing image for face recognition...");
   // //mobilenet
   // const decodedImage = await tfnode.node.decodeJpeg(imagePathOrBuffer, 3);
   // const predictions = await mb.classify(decodedImage);
@@ -180,8 +181,8 @@ export async function analyzeAndRecognize(imagePathOrBuffer, faceMatcher) {
   const outCanvas = faceapi.createCanvasFromMedia(img);
   faceapi.draw.drawDetections(outCanvas, detections, { boxColor: "black" });
   faceapi.draw.drawFaceLandmarks(outCanvas, detections, {
-    lineColor: "black",
-    pointColor: "blue",
+    lineColor: "white",
+    pointColor: "black",
     drawLines: true,
     drawPoints: true,
     lineWidth: 1,

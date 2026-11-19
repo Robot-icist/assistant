@@ -19,7 +19,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { xttsGradio } from "./xttsGradio.js";
 import { dreamtalkGradio } from "../image/dreamtalkGradio.js";
-import { chatterboxGradio } from "./chatterboxGradio.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name of the directory
 
@@ -138,7 +137,6 @@ export async function speak(text, speakerId = sourceId) {
         // resolves.push({ resolve, text, timeName });
 
         const data = await xttsGradio(`"${text}"`, lang, speakerWavPath);
-        // const data = await chatterboxGradio(`"${text}"`, lang, speakerWavPath);
 
         console.timeEnd(timeName);
         // console.log("ttsGradio data", data); 

@@ -19,14 +19,16 @@ import "dotenv/config";
 import nlp from 'compromise'
 import path from "path";
 import { fileURLToPath } from "url";
+import { getProvider } from "./providers.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name of the directory
 
-const ollamaInstance = new Ollama();
+const ollamaInstance = new Ollama({ host: getProvider("ollama").baseUrl });
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-const geminiModel = "gemma-3-27b-it"; 
+const geminiModel = "gemma-3-12b-it"; 
+// const geminiModel = "gemma-3-27b-it"; 
 // const geminiModel = "gemini-2.5-flash-lite"; 
 
 let google = process.env.GOOGLE;
@@ -54,11 +56,11 @@ let screenWidth = 0;
 
 const systemInstructions = () =>
   getLang() == "fr"
-    ? `Tu t'appels ${getHotword()}. Ne dis jamais ton nom.
-          Tu es un assistant virtuel sur ordinateur, 
+    ? //`Tu t'appels ${getHotword()}. Ne dis jamais ton nom.
+          `Tu es un assistant virtuel sur ordinateur, 
           tu fais des petites phrases et tu réponds a toutes mes demandes avec efficacité.` // et termine chacunes de tes réponses par le mot "Patron !".`
-    : `Your Name is ${getHotword()}. Never say your name.
-          You are a virtual assistant on a computer, 
+    : //`Your Name is ${getHotword()}. Never say your name.
+          `You are a virtual assistant on a computer, 
           you make small sentences and you reply to all my demands in the language I write to you with efficiency.`; // and terminate every of your answers with the word "Boss !".`;
 
 // Initialize conversation history as an array of message objects
@@ -73,15 +75,23 @@ let conversationHistoryGemini = [];
 
 let stream;
 let abortController = new AbortController();
+let providerAbortController;
 
 export const stopStream = () => {
   stream?.abortController?.abort();
   abortController?.abort();
+  providerAbortController?.abort();
 };
 
 let llm = "llama3.2:3b";
+let llmProvider = "ollama";
 
 export const setLLM = (val) => (llm = val);
+export const setLLMProvider = (val) => {
+  getProvider(val);
+  if (llmProvider !== val) conversationHistory = conversationHistory.slice(0, 1);
+  llmProvider = val;
+};
 /**
  * Generates and speaks a response using Ollama's LLM.
  *
@@ -122,20 +132,21 @@ export async function ollamaChat(text, speak, model = llm) {
     let accumulatedText = "";
     // let stream = null;
     // const stream = await ollamaInstance.generate({
-    if (!google)
+    if (!google && llmProvider === "ollama")
       stream = await ollamaInstance.chat({
         model: model,
-        // prompt: conversationHistory[0].content
         messages: conversationHistory,
         stream: true,
-        //keep_alive: -1, // keep loaded
-        // keep_alive: 0, // unload after
         keep_alive: keepInMemory ? -1 : 0,
         options: {
           temperature: getEvil() ? 0.8 : 0,
           num_gpus: 64,
         },
       });
+    else if (!google) {
+      providerAbortController = new AbortController();
+      stream = openAIChatStream(llmProvider, model, conversationHistory, providerAbortController.signal);
+    }
     else {
       const gemini = genAI.getGenerativeModel({
         model: geminiModel,
@@ -157,9 +168,10 @@ export async function ollamaChat(text, speak, model = llm) {
       // accumulatedText += chunk.response;
       // for chat
       if (!google) {
-        process.stdout.write(chunk.message.content);
-        accumulatedText += chunk.message.content;
-        sendToAll("text:" + chunk.message.content);
+        const content = llmProvider === "ollama" ? chunk.message.content : chunk;
+        process.stdout.write(content);
+        accumulatedText += content;
+        sendToAll("text:" + content);
       } else {
         process.stdout.write(chunk.text());
         accumulatedText += chunk.text();
@@ -213,6 +225,45 @@ export async function ollamaChat(text, speak, model = llm) {
     }
   } catch (error) {
     console.error("Error with Ollama API:", error);
+  }
+}
+
+async function* openAIChatStream(providerName, model, messages, signal) {
+  const provider = getProvider(providerName);
+  const headers = { "Content-Type": "application/json" };
+  if (provider.apiKey) headers.Authorization = `Bearer ${provider.apiKey}`;
+
+  const response = await fetch(`${provider.baseUrl}${provider.chatPath}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ model, messages, stream: true }),
+    signal,
+  });
+  if (!response.ok) {
+    throw new Error(`${providerName} returned HTTP ${response.status}: ${await response.text()}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (!line.startsWith("data:")) continue;
+        const data = line.slice(5).trim();
+        if (data === "[DONE]") return;
+        const content = JSON.parse(data).choices?.[0]?.delta?.content;
+        if (typeof content === "string" && content) yield content;
+      }
+      if (done) break;
+    }
+  } finally {
+    reader.releaseLock();
+    providerAbortController = undefined;
   }
 }
 

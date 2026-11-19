@@ -54,7 +54,8 @@ import {
   runExecutableWithArgs,
   runPowerShellAsAdmin,
 } from "./src/global/processRunner.js";
-import { closeAllLocalTunnels , tunneling, subdomain} from "./src/global/tunnel.js";
+import { closeAllLocalTunnels, globalMode, tunneling, subdomain } from "./src/global/tunnel.js";
+import { setupTailscaleServe } from "./src/global/tailscale-serve.js";
 import smartlife from "./src/automation/smartlife.js";
 import { whisper } from "./src/voice/whisperProcess.js";
 import { detect } from "tinyld";
@@ -62,7 +63,6 @@ import { eld } from "eld";
 import { mapLanguageToCode } from "./src/global/mapping.js";
 import { comfyClient, generateImage } from "./src/image/comfyui.js";
 import { xttsProcess } from "./src/voice/xttsProcess.js";
-import { chatterboxProcess } from "./src/voice/chatterboxProcess.js";
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -97,8 +97,12 @@ export const setEvil = (val) => {
 runPowerShellAsAdmin(path.resolve(__dirname, "./src/llm/unload.ps1"));
 runExecutableWithArgs("taskkill",["/f", "/im", "python.exe"], null, false)
 
-if (process.env.GLOBAL) {
+if (globalMode) {
   (async () => await tunneling(subdomain))();
+} else {
+  setupTailscaleServe().catch((error) => {
+    console.error("Failed to configure Tailscale Serve:", error.message);
+  });
 }
 
 if (process.env.WHISPER) {
@@ -107,14 +111,14 @@ if (process.env.WHISPER) {
 
 if(process.env.TTS){ 
   xttsProcess.start();   
-  // chatterboxProcess.start();
 }
 
 if(process.env.VIDEO && process.env.SADTALKER === "true"){ 
   sadTalkerProcess.start();   
 }
 
-runExecutableWithArgs("ComfyUI.exe", []);
+// runExecutableWithArgs("ComfyUI.exe", []);
+runExecutableWithArgs("C:\\Users\\Gille\\AppData\\Local\\Programs\\@comfyorgcomfyui-electron\\Comfy Desktop\\Comfy Desktop.exe", []);
 runExecutableWithArgs("PowerToys.Awake.exe", ["--display-on",  "true"]);
 // preventSleep.enable();
 

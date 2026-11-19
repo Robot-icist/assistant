@@ -19,6 +19,7 @@ import asyncio
 
 import threading
 
+
 class AutoFlushHandler:
     def write(self, message):
         sys.__stdout__.write(message)
@@ -36,19 +37,22 @@ class AutoFlushHandler:
     def close(self):
         sys.__stdout__.close()
 
+
 sys.stdout = AutoFlushHandler()
 
 client = None
 
 previous_audio_path = None
-gpt_cond_latent = None 
+gpt_cond_latent = None
 speaker_embedding = None
 
 # Set UTF-8 encoding for standard input and output (good practice, though less critical for Gradio)
-if os.name != 'nt': # Not strictly necessary on Windows for Gradio, but good for general Python scripts
-    sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+if (
+    os.name != "nt"
+):  # Not strictly necessary on Windows for Gradio, but good for general Python scripts
+    sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8")
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 
 warnings.filterwarnings("ignore")
 
@@ -74,16 +78,26 @@ try:
 
     #  print("Loading model...", flush=True)
     config = XttsConfig()
-    config.load_json("C:/Users/Gille/AppData/Local/tts/tts_models--multilingual--multi-dataset--xtts_v2/config.json")
+    config.load_json(
+        "C:/Users/Gille/AppData/Local/tts/tts_models--multilingual--multi-dataset--xtts_v2/config.json"
+    )
     tts_model = Xtts.init_from_config(config)
-    tts_model.load_checkpoint(config, checkpoint_dir="C:/Users/Gille/AppData/Local/tts/tts_models--multilingual--multi-dataset--xtts_v2/", use_deepspeed=False)
+    tts_model.load_checkpoint(
+        config,
+        checkpoint_dir="C:/Users/Gille/AppData/Local/tts/tts_models--multilingual--multi-dataset--xtts_v2/",
+        use_deepspeed=False,
+    )
     tts_model.cuda()
 
     print("TTS model loaded successfully!", flush=True)
 except Exception as e:
     print(f"Error loading TTS model: {e}")
-    print("Please ensure you have the model files downloaded or a working internet connection for automatic download.")
-    print("You might need to run `tts --list_models` and `tts --model_name \"tts_models/multilingual/multi-dataset/xtts_v2\" --progress_bar True` once from your terminal to download the model.")
+    print(
+        "Please ensure you have the model files downloaded or a working internet connection for automatic download."
+    )
+    print(
+        'You might need to run `tts --list_models` and `tts --model_name "tts_models/multilingual/multi-dataset/xtts_v2" --progress_bar True` once from your terminal to download the model.'
+    )
     sys.exit(1)
 
 
@@ -106,43 +120,57 @@ XTTS_LANGUAGES = {
     "Japanese": "ja",
     "Hungarian": "hu",
     "Korean": "ko",
-    "Hindi": "hi" # Added Hindi as per common XTTS support
+    "Hindi": "hi",  # Added Hindi as per common XTTS support
 }
 LANGUAGE_CHOICES = list(XTTS_LANGUAGES.values())
 
 # Global configurations
-CHUNK_UPLOAD_FREQUENCY = 1  # Initial frequency for sending chunks
+SAMPLE_RATE = 24000
+# Buffer audio at the minimum duration first for fast (low-latency) playback,
+# then grow the buffer when subsequent chunks arrive slowly so the frontend
+# never starves and streaming stays smooth.
+MIN_BUFFER_DURATION = 1.0  # seconds of audio buffered for the first send
+MAX_BUFFER_DURATION = 6.0  # cap on buffered audio per send
+MIN_BUFFER_SAMPLES = int(SAMPLE_RATE * MIN_BUFFER_DURATION)
+MAX_BUFFER_SAMPLES = int(SAMPLE_RATE * MAX_BUFFER_DURATION)
+BUFFER_GROWTH = 1.5  # how much the buffer target grows between sends
 
 # Add a global variable to track the last synthesis time
 last_synthesis_time = time.time()
 
-# Function to reset the chunk upload frequency
-def reset_chunk_upload_frequency():
-    global CHUNK_UPLOAD_FREQUENCY
-    CHUNK_UPLOAD_FREQUENCY = 1
-
-# Function to step up the chunk upload frequency
-def step_up_chunk_upload_frequency():
-    global CHUNK_UPLOAD_FREQUENCY
-    CHUNK_UPLOAD_FREQUENCY = CHUNK_UPLOAD_FREQUENCY * 2
 
 def concatenate_chunks(chunks_list):
     # Concatenate chunks and convert to audio data
     concatenated = torch.cat(chunks_list, dim=0)
     buffer = io.BytesIO()
-    torchaudio.save(buffer, concatenated.squeeze().unsqueeze(0).cpu(), 24000, format="wav", encoding="PCM_S", bits_per_sample=16)
+    torchaudio.save(
+        buffer,
+        concatenated.squeeze().unsqueeze(0).cpu(),
+        SAMPLE_RATE,
+        format="wav",
+        encoding="PCM_S",
+        bits_per_sample=16,
+    )
     return buffer.getvalue()  # Return the raw bytes of the concatenated audio
 
-# Function to reset chunk upload frequency after inactivity
-def reset_frequency_after_inactivity(seconds=5):
-    global last_synthesis_time, CHUNK_UPLOAD_FREQUENCY, previous_audio_path
-    if time.time() - last_synthesis_time > seconds:  # Reset after 5 seconds of inactivity
-        reset_chunk_upload_frequency()
-        previous_audio_path = None  # Reset previous audio path to force re-computation of speaker latents
 
-def synthesize(text_input, speaker_wav_path, language_name, triggered_from_frontend=False):
-    print("CHUNK_UPLOAD_FREQUENCY", flush=True)
-    print(CHUNK_UPLOAD_FREQUENCY, flush=True)
+# Function to reset state after inactivity
+def reset_frequency_after_inactivity(seconds=5):
+    global last_synthesis_time, previous_audio_path
+    if time.time() - last_synthesis_time > seconds:
+        previous_audio_path = (
+            None  # Reset previous audio path to force re-computation of speaker latents
+        )
+
+
+def synthesize(
+    text_input, speaker_wav_path, language_name, triggered_from_frontend=False
+):
+    print("Buffer config:", flush=True)
+    print(
+        f"MIN_BUFFER_DURATION: {MIN_BUFFER_DURATION}s, MIN_BUFFER_SAMPLES: {MIN_BUFFER_SAMPLES}",
+        flush=True,
+    )
     global last_synthesis_time
 
     # Update the last synthesis time
@@ -157,9 +185,6 @@ def synthesize(text_input, speaker_wav_path, language_name, triggered_from_front
     if not language_name:
         return None, "Error: Language not selected."
 
-    # # Reset chunk upload frequency for a new request
-    # reset_chunk_upload_frequency()
-
     # language_code = XTTS_LANGUAGES.get(language_name)
     language_code = language_name
     if not language_code:
@@ -168,12 +193,14 @@ def synthesize(text_input, speaker_wav_path, language_name, triggered_from_front
     status_message = ""
     output_audio_path = None
 
-    global gpt_cond_latent, speaker_embedding, previous_audio_path 
+    global gpt_cond_latent, speaker_embedding, previous_audio_path
 
-    if(previous_audio_path is None or speaker_wav_path != previous_audio_path):
+    if previous_audio_path is None or speaker_wav_path != previous_audio_path:
         print("Computing speaker latents...", flush=True)
         previous_audio_path = speaker_wav_path
-        gpt_cond_latent, speaker_embedding = tts_model.get_conditioning_latents(audio_path=[speaker_wav_path])
+        gpt_cond_latent, speaker_embedding = tts_model.get_conditioning_latents(
+            audio_path=[speaker_wav_path]
+        )
 
     # print("Inference...", flush=True)
 
@@ -183,7 +210,10 @@ def synthesize(text_input, speaker_wav_path, language_name, triggered_from_front
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav_file:
             output_file_path = tmp_wav_file.name
 
-        print(f"Synthesizing: Text='{text_input[:50]}...', Speaker WAV='{speaker_wav_path}', Lang='{language_code}'", flush=True)
+        print(
+            f"Synthesizing: Text='{text_input[:50]}...', Speaker WAV='{speaker_wav_path}', Lang='{language_code}'",
+            flush=True,
+        )
 
         if device == "cuda":
             torch.cuda.empty_cache()
@@ -193,43 +223,62 @@ def synthesize(text_input, speaker_wav_path, language_name, triggered_from_front
         #     text=text_input,
         #     speaker_wav=speaker_wav_path,
         #     language=language_code,
-        #     file_path=output_file_path, 
+        #     file_path=output_file_path,
         # )
 
         t0 = time.time()
         chunks = tts_model.inference_stream(
-            text_input,
-            language_code,
-            gpt_cond_latent,
-            speaker_embedding
+            text_input, language_code, gpt_cond_latent, speaker_embedding
         )
 
         wav_chunks = []
         chunks_to_send = []
+        accumulated_samples = 0
+        target_buffer_samples = MIN_BUFFER_SAMPLES
         for i, chunk in enumerate(chunks):
+            chunk_samples = chunk.shape[-1]
             if i == 0:
-                print(f"Time to first chunck: {time.time() - t0}", flush=True)
-                # # # Send first chunk immediately
-                # # wav_data = concatenate_chunks([chunk])
-                # # asyncio.run(async_logic(wav_data))
-                # chunks_to_send = []  # Reset accumulator
-                # chunks_to_send.append(chunk) 
-            # else:
-            chunks_to_send.append(chunk)
-            # Send accumulated chunks every CHUNK_UPLOAD_FREQUENCY iterations after the first chunk
-            if (i + 1) % CHUNK_UPLOAD_FREQUENCY == 0 and chunks_to_send:
-                wav_data = concatenate_chunks(chunks_to_send)
-                asyncio.run(async_logic(wav_data))
-                chunks_to_send = []  # Reset accumulator after sending
-                step_up_chunk_upload_frequency()  # Step up the frequency
+                print(f"Time to first chunk: {time.time() - t0}", flush=True)
+                # Send the very first chunk immediately so playback starts fast
+                wav_data = concatenate_chunks([chunk])
+                send_audio(wav_data)
+                wav_chunks.append(chunk)
+                print(
+                    f"Sent first chunk {i} of length {chunk_samples} (~{chunk_samples / SAMPLE_RATE:.2f}s)",
+                    flush=True,
+                )
+                continue
 
-            print(f"Received chunk {i} of audio length {chunk.shape[-1]}", flush=True)
+            chunks_to_send.append(chunk)
+            accumulated_samples += chunk_samples
+
+            # Send accumulated chunks once we have at least the target buffer
+            if accumulated_samples >= target_buffer_samples:
+                wav_data = concatenate_chunks(chunks_to_send)
+                send_audio(wav_data)
+                sent_samples = accumulated_samples
+                chunks_to_send = []
+                accumulated_samples = 0
+                # Grow the target buffer for the next send so the frontend has
+                # more audio queued and streaming stays smooth
+                target_buffer_samples = min(
+                    MAX_BUFFER_SAMPLES,
+                    int(target_buffer_samples * BUFFER_GROWTH),
+                )
+                print(
+                    f"Sent chunk {i} of length {sent_samples} (~{sent_samples / SAMPLE_RATE:.2f}s), next target ~{target_buffer_samples / SAMPLE_RATE:.2f}s",
+                    flush=True,
+                )
+
+            print(f"Received chunk {i} of audio length {chunk_samples}", flush=True)
             wav_chunks.append(chunk)
 
         # Send any remaining chunks
         if chunks_to_send:
             wav_data = concatenate_chunks(chunks_to_send)
-            asyncio.run(async_logic(wav_data))
+            send_audio(wav_data)
+            chunks_to_send = []
+            accumulated_samples = 0
 
         # #send complete audio directly by websocket
         # wav_data = concatenate_chunks(wav_chunks)
@@ -239,7 +288,13 @@ def synthesize(text_input, speaker_wav_path, language_name, triggered_from_front
             print("Saving audio to file as triggered from frontend...", flush=True)
             # Save to file needed for video generation / Gradio playback
             wav = torch.cat(wav_chunks, dim=0)
-            torchaudio.save(output_file_path, wav.squeeze().unsqueeze(0).cpu(), 24000, encoding="PCM_S", bits_per_sample=16)
+            torchaudio.save(
+                output_file_path,
+                wav.squeeze().unsqueeze(0).cpu(),
+                24000,
+                encoding="PCM_S",
+                bits_per_sample=16,
+            )
             output_audio_path = output_file_path
             status_message = f"Audio generated successfully! Saved to temporary path: {output_audio_path}"
             print(status_message, flush=True)
@@ -249,7 +304,9 @@ def synthesize(text_input, speaker_wav_path, language_name, triggered_from_front
         print(error_msg, flush=True)
         status_message = error_msg
         if output_audio_path and os.path.exists(output_audio_path):
-            os.remove(output_audio_path) # Clean up temp file if error occurred after creation
+            os.remove(
+                output_audio_path
+            )  # Clean up temp file if error occurred after creation
         output_audio_path = None
     finally:
         if device == "cuda":
@@ -257,6 +314,7 @@ def synthesize(text_input, speaker_wav_path, language_name, triggered_from_front
         gc.collect()
 
     return output_audio_path, status_message
+
 
 # gr.themes.Base() - the "base" theme sets the primary color to blue but otherwise has minimal styling, making it particularly useful as a base for creating new, custom themes.
 # gr.themes.Default() - the "default" Gradio 5 theme, with a vibrant orange primary color and gray secondary color.
@@ -275,58 +333,70 @@ with gr.Blocks(theme=gr.themes.Default()) as app:
         "Enter text, upload a reference speaker WAV file (clear audio, 5-30 seconds long is ideal, mono 16-bit 22050Hz or 24000Hz recommended), "
         "and select the language of the text."
     )
-    
+
     with gr.Row():
         with gr.Column(scale=2):
             text_input = gr.Textbox(
                 label="Text to Synthesize",
                 placeholder="Type or paste your text here...",
-                lines=4
+                lines=4,
             )
             speaker_wav_input = gr.Audio(
                 label="Speaker Reference WAV",
-                type="filepath", # Important: TTS library needs a file path
+                type="filepath",  # Important: TTS library needs a file path
                 # file_types=[".wav"] # This doesn't seem to work reliably for gr.Audio, user needs to ensure it's WAV
             )
             language_dropdown = gr.Dropdown(
                 label="Language of Text",
                 choices=LANGUAGE_CHOICES,
-                value="en" # Default language
+                value="en",  # Default language
             )
             from_frontend = gr.Checkbox(
                 label="Triggered From Frontend",
-                value=True, # Default value
-                visible=False, # Hidden input to indicate if triggered from frontend
+                value=True,  # Default value
+                visible=False,  # Hidden input to indicate if triggered from frontend
             )
             submit_button = gr.Button("Synthesize Audio", variant="primary")
-        
+
         with gr.Column(scale=1):
             audio_output = gr.Audio(
                 label="Synthesized Audio Output",
-                type="filepath" # To play/download the generated file
+                type="filepath",  # To play/download the generated file
             )
             status_output = gr.Textbox(
                 label="Status / Log",
                 lines=5,
-                interactive=False # Read-only
+                interactive=False,  # Read-only
             )
 
     submit_button.click(
         fn=synthesize,
         inputs=[text_input, speaker_wav_input, language_dropdown, from_frontend],
-        outputs=[audio_output, status_output]
+        outputs=[audio_output, status_output],
     )
-    
+
     gr.Examples(
         examples=[
-            ["Hello, this is a test of the text to speech system.", "wavs/scarlett.wav", "en"],
-            ["Bonjour, ceci est un test du système de synthèse vocale.", "wavs/pierrenineytrim.wav", "fr"],
-            ["Hola, esta es una prueba del sistema de texto a voz.", "wavs/scarlett.wav", "es"],
+            [
+                "Hello, this is a test of the text to speech system.",
+                "wavs/scarlett.wav",
+                "en",
+            ],
+            [
+                "Bonjour, ceci est un test du système de synthèse vocale.",
+                "wavs/pierrenineytrim.wav",
+                "fr",
+            ],
+            [
+                "Hola, esta es una prueba del sistema de texto a voz.",
+                "wavs/scarlett.wav",
+                "es",
+            ],
         ],
         inputs=[text_input, speaker_wav_input, language_dropdown, from_frontend],
         outputs=[audio_output, status_output],
         fn=synthesize,
-        cache_examples=False # Set to True if you want to pre-compute and cache example outputs
+        cache_examples=False,  # Set to True if you want to pre-compute and cache example outputs
     )
     # # Add a note about example WAV files
     # gr.Markdown(
@@ -334,11 +404,46 @@ with gr.Blocks(theme=gr.themes.Default()) as app:
     #     "as this script and place `female_voice_sample.wav` and `male_voice_sample.wav` (or your own samples) in it."
     # )
 
-async def async_logic(data) :
+
+WS_URL = "ws://localhost:80"
+websocket_loop = None
+
+
+async def open_websocket():
     global client
-    client = await websockets.connect("ws://localhost:80")
-    if(data is not None):
-        await client.send(data)
+    client = await websockets.connect(WS_URL)
+
+
+async def _send_audio(data):
+    global client
+    for attempt in range(2):
+        if client is None:
+            client = await websockets.connect(WS_URL)
+        try:
+            await client.send(data)
+            return
+        except Exception:
+            try:
+                await client.close()
+            except Exception:
+                pass
+            client = None
+            if attempt == 1:
+                raise
+
+
+def send_audio(data):
+    if websocket_loop is None:
+        raise RuntimeError("WebSocket event loop has not been started.")
+    asyncio.run_coroutine_threadsafe(_send_audio(data), websocket_loop).result()
+
+
+def start_websocket():
+    global websocket_loop
+    websocket_loop = asyncio.new_event_loop()
+    threading.Thread(target=websocket_loop.run_forever, daemon=True).start()
+    asyncio.run_coroutine_threadsafe(open_websocket(), websocket_loop).result()
+
 
 # Define a proper function for periodic reset
 def periodic_reset():
@@ -346,12 +451,13 @@ def periodic_reset():
         time.sleep(6)
         reset_frequency_after_inactivity(6)
 
+
 # Start the thread with the periodic reset function
 threading.Thread(target=periodic_reset, daemon=True).start()
 
 if __name__ == "__main__":
     print("Launching Gradio app...", flush=True)
-    asyncio.run(async_logic(None))
+    start_websocket()
     # You can share the app by setting share=True (requires internet)
-    # app.launch(share=True) 
+    # app.launch(share=True)
     app.launch()

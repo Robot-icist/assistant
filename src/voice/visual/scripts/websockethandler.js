@@ -1,11 +1,14 @@
 class WebSocketHandler {
-  constructor(url) {
+  constructor(url, reconnect = true) {
     this.url = url;
+    this.reconnect = reconnect;
     this.callbacks = [];
     this.ws = null;
-    this.reconnectInterval = 3000;
+    this.reconnectInterval = 1000;
     this.mediaQueue = [];
     this.isPlaying = false;
+    this.isReceivingMedia = false;
+    this.preloadedMedia = null;
     this.addCallback = this.addCallback;
     this.send = this.send;
     this.events = new EventEmitter();
@@ -22,11 +25,20 @@ class WebSocketHandler {
       console.log("WebSocket connected");
     };
     this.ws.onmessage = (event) => this.handleMessage(event);
-    this.ws.onerror = (error) => console.error("WebSocket error:", error);
+    this.ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      if(this.reconnect){
+        console.log("Reconnecting...");
+        setTimeout(() => this.initWebSocket(), this.reconnectInterval);
+      }
+    };
     this.ws.onclose = () => {
       this.events.emit("disconnected");
-      console.log("WebSocket closed. Reconnecting...");
-      setTimeout(() => this.initWebSocket(), this.reconnectInterval);
+      console.log("WebSocket closed.");
+      if(this.reconnect){
+        console.log("Reconnecting...");
+        setTimeout(() => this.initWebSocket(), this.reconnectInterval);
+      }
     };
   }
 
@@ -52,7 +64,11 @@ class WebSocketHandler {
       }
       if (event.data.includes("loading:")) {
         let loading = event.data.split("loading:").pop();
+        this.isReceivingMedia = loading == "true";
         this.events.emit(loading == "true" ? "loading" : "unloading");
+        if (!this.isReceivingMedia && !this.isPlaying && this.mediaQueue.length > 0) {
+          this.playNextMedia();
+        }
       }
       if (event.data.includes("stop:")) {
         this.events.emit("stop");
@@ -127,8 +143,41 @@ class WebSocketHandler {
     this.mediaQueue.push({ buffer, type });
     this.updateMediaQueueDisplay();
     if (!this.isPlaying) {
-      this.playNextMedia();
+      const needsStartupBuffer =
+        this.isReceivingMedia &&
+        (type.startsWith("audio") || type.startsWith("video")) &&
+        this.mediaQueue.length < 2;
+      if (!needsStartupBuffer) this.playNextMedia();
+    } else {
+      this.prepareNextMedia();
     }
+  }
+
+  prepareNextMedia() {
+    const item = this.mediaQueue[0];
+    if (!item || item.preloaded || item.type.startsWith("image")) return;
+
+    const url = URL.createObjectURL(new Blob([item.buffer], { type: item.type }));
+    const element = document.createElement(
+      item.type.startsWith("audio") ? "audio" : "video"
+    );
+    element.preload = "auto";
+    element.src = url;
+    element.load();
+    item.preloaded = { element, url };
+    this.preloadedMedia = item.preloaded;
+  }
+
+  clearMediaQueue() {
+    for (const item of this.mediaQueue) {
+      if (item.preloaded) {
+        item.preloaded.element.remove();
+        URL.revokeObjectURL(item.preloaded.url);
+      }
+    }
+    this.mediaQueue = [];
+    this.preloadedMedia = null;
+    this.updateMediaQueueDisplay();
   }
 
   updateMediaQueueDisplay() {
@@ -189,30 +238,43 @@ class WebSocketHandler {
       return;
     }
 
+    const nextItem = this.mediaQueue[0];
+    if (
+      this.isReceivingMedia &&
+      this.mediaQueue.length < 2 &&
+      (nextItem.type.startsWith("audio") || nextItem.type.startsWith("video"))
+    ) {
+      this.isPlaying = false;
+      this.updateMediaQueueDisplay();
+      return;
+    }
+
     this.isPlaying = true;
     WS.events.emit("playing");
-    const { buffer, type } = this.mediaQueue.shift();
-    const blob = new Blob([buffer], { type });
-    const url = URL.createObjectURL(blob);
+    const item = this.mediaQueue.shift();
+    const { buffer, type } = item;
+    const url =
+      item.preloaded?.url ?? URL.createObjectURL(new Blob([buffer], { type }));
+    this.preloadedMedia = null;
 
     this.updateMediaQueueDisplay(); // Always update at the start
 
     if (this.callbacks.length > 0)
       for (let cb of this.callbacks) {
-        cb(buffer, true, type);
+        cb(type.startsWith("audio") ? buffer.slice(0) : buffer, true, type);
       }
 
     let mediaElement;
     if (type.startsWith("audio")) {
       document.getElementById("audio")?.remove();
-      mediaElement = document.createElement("audio");
+      mediaElement = item.preloaded?.element ?? document.createElement("audio");
       mediaElement.id = "audio";
       mediaElement.controls = true;
       mediaElement.autoplay = true;
       mediaElement.style.display = "none";
     } else if (type.startsWith("video")) {
       document.getElementById("video")?.remove();
-      mediaElement = document.createElement("video");
+      mediaElement = item.preloaded?.element ?? document.createElement("video");
       mediaElement.id = "video";
       mediaElement.controls = false;
       mediaElement.autoplay = true;
@@ -241,64 +303,86 @@ class WebSocketHandler {
     }
 
     if (mediaElement) {
-      const source = document.createElement("source");
-      source.src = url;
-      source.type = type;
-      mediaElement.appendChild(source);
+      if (!item.preloaded) {
+        const source = document.createElement("source");
+        source.src = url;
+        source.type = type;
+        mediaElement.appendChild(source);
+      }
       document.body.appendChild(mediaElement);
+      this.prepareNextMedia();
       if (mediaElement.id == "image") this.playNextMedia();
 
-      let oneSecondBeforeEndFired = false;
+      let mediaAdvanced = false;
       let timeBeforeEnd = 0.25;
-      mediaElement.onended = () => {
-        if(type.startsWith("video")) return;
+      const advanceMedia = () => {
+        if (mediaAdvanced) return;
+        mediaAdvanced = true;
         WS.events.emit("played");
-        // document.body.removeChild(mediaElement);
         URL.revokeObjectURL(url);
         this.playNextMedia();
         setTimeout(() => this.updateMediaQueueDisplay(), 0);
       };
+      mediaElement.onended = advanceMedia;
       mediaElement.ontimeupdate = () => {
-        if(!type.startsWith("video")) return;
+        if (!type.startsWith("video")) return;
         if (
           mediaElement.duration &&
-          mediaElement.currentTime >= mediaElement.duration - timeBeforeEnd &&
-          !oneSecondBeforeEndFired
+          mediaElement.currentTime >= mediaElement.duration - timeBeforeEnd
         ) {
-          oneSecondBeforeEndFired = true;
-          // console.log(timeBeforeEnd, " seconds before video ends!");
-          WS.events.emit("played");
-          // document.body.removeChild(mediaElement);
-          URL.revokeObjectURL(url);
-          this.playNextMedia();
-          setTimeout(() => this.updateMediaQueueDisplay(), 0);
+          advanceMedia();
         }
       };
       mediaElement.onerror = () => {
-        WS.events.emit("played");
         console.error("Media failed to load:", mediaElement.error);
         alert("Failed to play media. Downloading instead...");
         window.location.href = url;
-        URL.revokeObjectURL(url);
-        this.playNextMedia();
-        setTimeout(() => this.updateMediaQueueDisplay(), 0);
+        advanceMedia();
       };
       mediaElement.onclick = () => {
-        WS.events.emit("played");
         mediaElement.remove();
-        URL.revokeObjectURL(url);
-        this.playNextMedia();
-        setTimeout(() => this.updateMediaQueueDisplay(), 0);
+        advanceMedia();
       };
+
+      if (typeof mediaElement.play === "function") {
+        const playPromise = mediaElement.play();
+        if (playPromise?.catch) {
+          playPromise.catch((error) => {
+            console.error("Media playback could not start:", error);
+          });
+        }
+      }
     }
   }
 }
-const pageKite = false;
-const subdomain = "green-earth";
-if (pageKite) {
-  WS = new WebSocketHandler(`wss://ws-${subdomain}.pagekite.me`);
-  WS1 = new WebSocketHandler(`wss://ws-${subdomain}.pagekite.me/recognition`);
-} else {
-  WS = new WebSocketHandler(`wss://ws-${subdomain}.loca.lt`);
-  WS1 = new WebSocketHandler(`wss://ws-${subdomain}.loca.lt/recognition`);
-}
+
+const subdomain = "blade.tail44dff3.ts.net";
+const hostname = window.location.hostname;
+const isLocalAssistant = ["localhost", "127.0.0.1"].includes(hostname);
+const isTailscaleHost = hostname.endsWith(".ts.net");
+const isLocalTunnelHost = hostname.endsWith(".loca.lt");
+const isPageKiteHost = hostname.endsWith(".pagekite.me");
+const domain = isLocalTunnelHost
+  ? ".loca.lt"
+  : isPageKiteHost
+    ? ".pagekite.me"
+    : ".loca.lt";
+const activeSubdomain = isLocalTunnelHost || isPageKiteHost
+  ? hostname.slice(0, -domain.length)
+  : subdomain;
+const assistantWsUrl = isLocalAssistant
+  ? "ws://localhost:80"
+  : isTailscaleHost
+    ? `wss://${hostname}:8443`
+    : `wss://ws-${activeSubdomain}${domain}`;
+
+window.assistantEndpoints = {
+  whisperUrl: isLocalAssistant
+    ? "ws://localhost:10000/asr"
+    : isTailscaleHost
+      ? `wss://${hostname}:10000/asr`
+      : `wss://whisper-${activeSubdomain}${domain}/asr`,
+};
+
+WS = new WebSocketHandler(assistantWsUrl);
+WS1 = new WebSocketHandler(`${assistantWsUrl}/recognition`);

@@ -25,7 +25,7 @@ async function dreamtalkGradio(audioInputUrlOrPath, imagePathUrlOrPath, emotiona
         exampleImage = await fetchFileAsBlob(imagePathUrlOrPath);
     }
 
-    const client = await Client.connect("http://127.0.0.1:7861/");
+    const client = await Client.connect("http://127.0.0.1:7860/");
     const result = await client.predict("/infer", {
         audio_input_path: exampleAudio,
         image_path: exampleImage,

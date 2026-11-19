@@ -229,7 +229,7 @@ const createTempFileFromBuffer = async (buffer, extension = "wav") => {
 };
 
 const sendEmail = async (to, subject, text) => {
-  console.log(`Preparing to send email to ${to} with subject "${subject}" with text: ${text} and env user: ${process.env.EMAIL_USER} with pass: ${process.env.EMAIL_PASS} `);
+  console.log(`Preparing to send email to ${to} with subject "${subject}" with text: ${text} `); //and env user: ${process.env.EMAIL_USER} with pass: ${process.env.EMAIL_PASS} `);
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {

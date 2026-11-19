@@ -236,7 +236,7 @@
           <input
             id="websocketInput"
             type="text"
-            value="wss://whisper-person.pagekite.me/asr"
+            value="wss://whisper-blade.tail44dff3.ts.net.pagekite.me/asr"
           />
         </div>
       </div>
@@ -252,8 +252,11 @@
       let websocket = null;
       let recorder = null;
       let chunkDuration = 500;
-      const subdomain = "green-earth";
-      let websocketUrl = `wss://${subdomain}.loca.lt/asr`;
+      const subdomain = "blade.tail44dff3.ts.net";
+      const isLocalAssistant = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+      let websocketUrl = isLocalAssistant
+        ? "ws://localhost:10000/asr"
+        : `wss://${window.location.host}/asr`;
       let userClosing = false;
 
       const statusText = document.getElementById("status");
@@ -261,6 +264,7 @@
       const chunkSelector = document.getElementById("chunkSelector");
       const websocketInput = document.getElementById("websocketInput");
       const linesTranscriptDiv = document.getElementById("linesTranscript");
+      websocketInput.value = websocketUrl;
 
       chunkSelector.addEventListener("change", () => {
         chunkDuration = parseInt(chunkSelector.value);
@@ -341,7 +345,7 @@
         const linesHtml = lines
           .map((item, idx) => {
             let timeInfo = "";
-            if (item.beg !== green-earth && item.end !== green-earth) {
+            if (item.beg !== null && item.end !== null) {
               timeInfo = ` ${item.beg} - ${item.end}`;
             }
 

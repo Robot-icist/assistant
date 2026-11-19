@@ -15,6 +15,7 @@ import {
   setGoogle,
   setKeepInMemory,
   setLLM,
+  setLLMProvider,
 } from "../llm/ollama.js";
 import { setHotword } from "../voice/hotword.js";
 import { isIPAllowed } from "./IP.js";
@@ -62,6 +63,7 @@ export const startWs = () => {
           if (json.video != null) setVideo(json.video);
           if (json.lang != null) setLang(json.lang);
           if (json.google != null) setGoogle(json.google);
+          if (json.llmProvider != null) setLLMProvider(json.llmProvider);
           if (json.llm != null) setLLM(json.llm);
           if (json.keepInMemory != null) setKeepInMemory(json.keepInMemory);
           if (json.D3 != null) setD3(json.D3);
