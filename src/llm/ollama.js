@@ -25,6 +25,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url)); // get the name 
 
 const ollamaInstance = new Ollama({ host: getProvider("ollama").baseUrl });
 
+// Ollama otherwise uses the model's full trained context (llama3.2:3b: 131072
+// tokens), whose KV cache is ~13 GB and spills onto the CPU. A voice assistant
+// never needs that much history; 4096 tokens keeps everything on the GPU.
+const ollamaNumCtx = Number(process.env.OLLAMA_NUM_CTX || 4096);
+const ollamaNumGpu = Number(process.env.OLLAMA_NUM_GPU || 99);
+
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
 const geminiModel = "gemma-3-12b-it"; 
@@ -140,7 +146,10 @@ export async function ollamaChat(text, speak, model = llm) {
         keep_alive: keepInMemory ? -1 : 0,
         options: {
           temperature: getEvil() ? 0.8 : 0,
-          num_gpus: 64,
+          // `num_gpu` (layers to offload) was previously misspelled as
+          // `num_gpus`, so Ollama ignored it.
+          num_ctx: ollamaNumCtx,
+          num_gpu: ollamaNumGpu,
         },
       });
     else if (!google) {
@@ -316,6 +325,10 @@ export async function ollamaVision(basePrompt, speak, bytes) {
         // keep_alive: -1, // keep
         // keep_alive: 0, // not keep
         keep_alive: keepInMemory ? -1 : 0,
+        options: {
+          num_ctx: ollamaNumCtx,
+          num_gpu: ollamaNumGpu,
+        },
       });
     else {
       const gemini = genAI.getGenerativeModel({

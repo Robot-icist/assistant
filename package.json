@@ -31,7 +31,9 @@
     "visual": "npm-run-all --parallel --print-label --race serve_visual waitAndShow",
     "vfrtts": "npm-run-all --parallel --print-label --race visual frtts",
     "vsfrtts": "npm-run-all --parallel --print-label --race serve_visual frtts",
-    "ventts": "npm-run-all --parallel --print-label --race visual entts"
+    "ventts": "npm-run-all --parallel --print-label --race visual entts",
+    "asr-setup": "uv sync --project src/python/nemotron_asr",
+    "asr-run": "uv run --project src/python/nemotron_asr python src/python/nemotron_asr/nemotron_fastapi_online_server.py --port 10000"
   },
   "author": "",
   "license": "ISC",

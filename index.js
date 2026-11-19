@@ -58,6 +58,7 @@ import { closeAllLocalTunnels, globalMode, tunneling, subdomain } from "./src/gl
 import { setupTailscaleServe } from "./src/global/tailscale-serve.js";
 import smartlife from "./src/automation/smartlife.js";
 import { whisper } from "./src/voice/whisperProcess.js";
+import { nemotron } from "./src/voice/nemotronProcess.js";
 import { detect } from "tinyld";
 import { eld } from "eld";
 import { mapLanguageToCode } from "./src/global/mapping.js";
@@ -106,7 +107,14 @@ if (globalMode) {
 }
 
 if (process.env.WHISPER) {
-  whisper.start();
+  // Nemotron 3.5 ASR is the default streaming engine. Set ASR_ENGINE=whisper
+  // to fall back to the original whisper_streaming_web server.
+  const asrEngine = (process.env.ASR_ENGINE || "nemotron").toLowerCase();
+  if (asrEngine === "whisper") {
+    whisper.start();
+  } else {
+    nemotron.start();
+  }
 }
 
 if(process.env.TTS){ 
