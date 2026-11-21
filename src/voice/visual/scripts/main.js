@@ -163,8 +163,8 @@ requestNotificationPermission();
 let loading = false;
 window.addEventListener("load", () => {
   sendParams();
-  WS.events.subscribe("connected", () => changeColor("deepskyblue"));
-  WS.events.subscribe("disconnected", () => changeColor("grey"));
+  WS.events.subscribe("connected", () => changeColor("deepskyblue", true));
+  WS.events.subscribe("disconnected", () => changeColor("grey", true));
   WS.events.subscribe("loading", () => {
     loading = true;
     showLoader();

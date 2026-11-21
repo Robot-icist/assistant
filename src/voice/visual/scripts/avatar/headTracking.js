@@ -6,37 +6,236 @@ import { saveConfig } from "./config.js";
 // ============ Head Tracking ============
 export function createPreviewOverlay() {
   if (state.previewCanvas) return state.previewCanvas;
-  
-  state.previewCanvas = document.createElement("canvas");
-  state.previewCanvas.width = 160;
-  state.previewCanvas.height = 120;
-  state.previewCanvas.style.cssText = `
+
+  const bounds = (state.globalConfig && state.globalConfig.previewBounds) || null;
+  const hasBounds = bounds && Number.isFinite(bounds.x) && Number.isFinite(bounds.y);
+  const size = (state.globalConfig && state.globalConfig.previewSize) || null;
+  const initW = (size && size.w) || 160;
+  const initH = (size && size.h) || 120;
+
+  const container = document.createElement("div");
+  container.style.cssText = `
     position: fixed;
-    bottom: 100px;
-    right: 20px;
-    width: 160px;
-    height: 120px;
+    ${hasBounds ? `left: ${bounds.x}px; top: ${bounds.y}px;` : `bottom: 100px; right: 20px;`}
+    width: ${initW}px;
+    height: ${initH}px;
     border: 2px solid #4ade80;
     border-radius: 8px;
     background: #000;
     z-index: 10001;
     box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-    image-rendering: pixelated;
+    touch-action: none;
+    cursor: move;
+    user-select: none;
+    overflow: hidden;
   `;
-  state.previewContext = state.previewCanvas.getContext("2d");
-  document.body.appendChild(state.previewCanvas);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 320;
+  canvas.height = 240;
+  canvas.style.cssText = `
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #000;
+  `;
+  container.appendChild(canvas);
+
+  // Resize handle
+  const handle = document.createElement("div");
+  handle.style.cssText = `
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 16px;
+    height: 16px;
+    cursor: se-resize;
+    background: linear-gradient(-45deg, transparent 50%, rgba(255,255,255,0.4) 50%);
+    z-index: 10;
+    touch-action: none;
+  `;
+  container.appendChild(handle);
+
+  state.previewCanvas = canvas;
+  state.previewContainer = container;
+  state.previewContext = canvas.getContext("2d");
+  document.body.appendChild(container);
+
+  // Make draggable
+  setupPreviewDrag(container);
+
+  // Make resizable with aspect-ratio lock
+  setupPreviewResize(container, handle);
+
+  // Keep inside viewport on window resize
+  if (!state._previewResizeHandler) {
+    state._previewResizeHandler = () => {
+      const el = state.previewContainer;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      let x = rect.left;
+      let y = rect.top;
+      const maxX = window.innerWidth - rect.width - 4;
+      const maxY = window.innerHeight - rect.height - 4;
+      if (x > maxX) x = Math.max(4, maxX);
+      if (y > maxY) y = Math.max(4, maxY);
+      if (x < 4) x = 4;
+      if (y < 4) y = 4;
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      el.style.bottom = "auto";
+      el.style.right = "auto";
+      if (state.globalConfig) {
+        state.globalConfig.previewBounds = { x, y };
+      }
+    };
+    window.addEventListener("resize", state._previewResizeHandler);
+  }
+
   return state.previewCanvas;
 }
 
+function setupPreviewDrag(el) {
+  let isDragging = false;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  const getPoint = (e) => {
+    if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (e.changedTouches && e.changedTouches.length) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  };
+
+  const start = (e) => {
+    const rect = el.getBoundingClientRect();
+    const pt = getPoint(e);
+    isDragging = true;
+    offsetX = pt.x - rect.left;
+    offsetY = pt.y - rect.top;
+    el.style.zIndex = "10002";
+    if (e.cancelable) e.preventDefault();
+  };
+
+  const move = (e) => {
+    if (!isDragging) return;
+    const pt = getPoint(e);
+    let x = pt.x - offsetX;
+    let y = pt.y - offsetY;
+    const rect = el.getBoundingClientRect();
+    const maxX = window.innerWidth - rect.width - 4;
+    const maxY = window.innerHeight - rect.height - 4;
+    if (x < 4) x = 4;
+    if (y < 4) y = 4;
+    if (x > maxX) x = Math.max(4, maxX);
+    if (y > maxY) y = Math.max(4, maxY);
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    el.style.bottom = "auto";
+    el.style.right = "auto";
+    if (e.cancelable) e.preventDefault();
+  };
+
+  const end = () => {
+    if (!isDragging) return;
+    isDragging = false;
+    const rect = el.getBoundingClientRect();
+    if (state.globalConfig) {
+      state.globalConfig.previewBounds = { x: rect.left, y: rect.top };
+      try { saveConfig(); } catch (e) {}
+    }
+  };
+
+  el.addEventListener("mousedown", start);
+  el.addEventListener("touchstart", start, { passive: false });
+  document.addEventListener("mousemove", move);
+  document.addEventListener("touchmove", move, { passive: false });
+  document.addEventListener("mouseup", end);
+  document.addEventListener("touchend", end);
+  document.addEventListener("touchcancel", end);
+}
+
+function setupPreviewResize(container, handle) {
+  let isResizing = false;
+  let startX = 0;
+  let startY = 0;
+  let startW = 0;
+  let startH = 0;
+
+  const getPoint = (e) => {
+    if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (e.changedTouches && e.changedTouches.length) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  };
+
+  const ratio = () => {
+    const vw = (state.videoElement && state.videoElement.videoWidth) || 4;
+    const vh = (state.videoElement && state.videoElement.videoHeight) || 3;
+    return vh / vw;
+  };
+
+  const start = (e) => {
+    const rect = container.getBoundingClientRect();
+    const pt = getPoint(e);
+    isResizing = true;
+    startX = pt.x;
+    startY = pt.y;
+    startW = rect.width;
+    startH = rect.height;
+    if (e.cancelable) e.preventDefault();
+    e.stopPropagation?.();
+  };
+
+  const move = (e) => {
+    if (!isResizing) return;
+    const pt = getPoint(e);
+    const dx = pt.x - startX;
+    const newW = Math.max(120, startW + dx);
+    const newH = Math.round(newW * ratio());
+    container.style.width = `${newW}px`;
+    container.style.height = `${newH}px`;
+    if (e.cancelable) e.preventDefault();
+  };
+
+  const end = () => {
+    if (!isResizing) return;
+    isResizing = false;
+    const rect = container.getBoundingClientRect();
+    if (state.globalConfig) {
+      state.globalConfig.previewBounds = { x: rect.left, y: rect.top };
+      state.globalConfig.previewSize = { w: rect.width, h: rect.height };
+      try { saveConfig(); } catch (e) {}
+    }
+  };
+
+  handle.addEventListener("mousedown", start);
+  handle.addEventListener("touchstart", start, { passive: false });
+  document.addEventListener("mousemove", move);
+  document.addEventListener("touchmove", move, { passive: false });
+  document.addEventListener("mouseup", end);
+  document.addEventListener("touchend", end);
+  document.addEventListener("touchcancel", end);
+}
+
 export function removePreviewOverlay() {
-  if (state.previewCanvas) {
-    state.previewCanvas.remove();
-    state.previewCanvas = null;
-    state.previewContext = null;
+  if (state.previewContainer) {
+    state.previewContainer.remove();
+    state.previewContainer = null;
   }
+  state.previewCanvas = null;
+  state.previewContext = null;
 }
 
 export async function initHeadTracking(mode) {
+  if (state.headTrackingActive || state._headTrackingStarting) {
+    // Already active or in progress; just update mode
+    state.config.headTrackingMode = mode;
+    saveConfig();
+    return;
+  }
+  state._headTrackingStarting = true;
   state.config.headTrackingMode = mode;
   saveConfig();
 
@@ -86,10 +285,12 @@ export async function initHeadTracking(mode) {
     }
     
     state.headTrackingActive = true;
+    state._headTrackingStarting = false;
     trackFace();
   } catch (error) {
     console.error("Failed to start head tracking:", error);
     state.config.headTrackingMode = "off";
+    state._headTrackingStarting = false;
     saveConfig();
     removePreviewOverlay();
     stopFaceMesh();
@@ -98,6 +299,7 @@ export async function initHeadTracking(mode) {
 
 export function stopHeadTracking() {
   state.headTrackingActive = false;
+  state._headTrackingStarting = false;
   removePreviewOverlay();
   stopFaceMesh();
   if (state.videoElement && state.videoElement.srcObject) {
@@ -217,7 +419,28 @@ export function onFaceMeshResults(results) {
 
 export function drawPreviewOverlay(landmarks) {
   if (!state.previewContext || !state.previewCanvas || !state.videoElement) return;
-  
+
+  // Sync canvas resolution + CSS aspect ratio to the video stream so the
+  // preview is never squished (mobile cameras often report different ratios).
+  const vw = state.videoElement.videoWidth;
+  const vh = state.videoElement.videoHeight;
+  if (vw && vh) {
+    const targetW = 320;
+    const targetH = Math.max(1, Math.round(targetW * (vh / vw)));
+    if (state.previewCanvas.width !== targetW || state.previewCanvas.height !== targetH) {
+      state.previewCanvas.width = targetW;
+      state.previewCanvas.height = targetH;
+      state.previewContext = state.previewCanvas.getContext("2d");
+    }
+    // Keep container height consistent with its width and the video aspect ratio
+    if (state.previewContainer) {
+      const w = state.previewContainer.getBoundingClientRect().width;
+      if (w > 0) {
+        state.previewContainer.style.height = `${Math.round(w * (vh / vw))}px`;
+      }
+    }
+  }
+
   const ctx = state.previewContext;
   const w = state.previewCanvas.width;
   const h = state.previewCanvas.height;

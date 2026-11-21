@@ -1,6 +1,7 @@
 import express from "express";
 import { resolve } from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 import { isIPAllowed } from "./IP.js";
 import { getProviderNames, listModels } from "../llm/providers.js";
 
@@ -27,6 +28,20 @@ app.get("/api/models", async (req, res) => {
     res.status(502).json({ error: error.message });
   }
 });
+app.get("/api/vrm-models", (req, res) => {
+  const modelsDir = resolve(publicDir, "models");
+  try {
+    const files = fs.readdirSync(modelsDir)
+      .filter((f) => f.toLowerCase().endsWith(".vrm"))
+      .sort((a, b) => a.localeCompare(b));
+    const models = files.map((f) => ({ name: f, url: "/models/" + encodeURIComponent(f) }));
+    res.json(models);
+  } catch (error) {
+    console.error("Failed to list VRM models:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.use("/models", express.static(resolve(publicDir, "models")));
 app.use(express.static(publicDir));
 app.listen(port, () => console.log(`Server running on port ${port}`));

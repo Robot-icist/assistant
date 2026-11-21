@@ -5,6 +5,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { loadModelConfig, saveConfig } from "./config.js";
 import { applyArmPositions } from "./arms.js";
 import { updateSettingsPanel } from "./windowManager.js";
+import { initHeadTracking } from "./headTracking.js";
 
 // ============ VRM Loading ============
 export async function loadVRM(url) {
@@ -75,6 +76,28 @@ export async function loadVRM(url) {
 
     // Update settings panel if open
     updateSettingsPanel();
+
+    // If head tracking is already active, apply VRM-specific setup that was
+    // skipped because the model wasn't loaded yet.
+    if (state.headTrackingActive && state.vrm) {
+      if (state.vrm.lookAt) state.vrm.lookAt.autoUpdate = false;
+      if (state.vrm.springBoneManager) {
+        state.vrm.springBoneManager.joints.forEach((joint) => {
+          if (joint.name === "head" || joint.name === "neck") {
+            joint.stiffness = 1000;
+            joint.dragForce = 0;
+            joint.gravityPower = 0;
+          }
+        });
+      }
+    }
+
+    // Auto-start head tracking if it was saved as active (not off)
+    if (!state.headTrackingActive && state.config.headTrackingMode && state.config.headTrackingMode !== "off") {
+      initHeadTracking(state.config.headTrackingMode).catch((err) => {
+        console.error("[Avatar] Failed to auto-start head tracking:", err);
+      });
+    }
 
     console.log("VRM loaded:", url);
     return state.vrm;

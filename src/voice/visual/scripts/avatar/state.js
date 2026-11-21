@@ -48,8 +48,10 @@ export const state = {
   // Head tracking
   videoElement: null,
   previewCanvas: null,
+  previewContainer: null,
   previewContext: null,
   headTrackingActive: false,
+  _headTrackingStarting: false,
   headTrackingState: {
     yaw: 0,
     pitch: 0,

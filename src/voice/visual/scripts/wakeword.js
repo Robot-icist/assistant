@@ -12,7 +12,7 @@ const logic = async (text) => {
     const params = getParams();
     !params.alwaysOn && params.whisper && (await toggleRecording());
     !params.alwaysOn && stopVoiceRecognition();
-    !params.alwaysOn && changeColor("deepskyblue");
+    !params.alwaysOn && changeColor("deepskyblue", true);
     console.log("recognized", text);
     !params.whisper && displayText(text);
     if (
@@ -56,7 +56,7 @@ let alwaysOnTrigger = false
 
 export const processCallback = async (wakeword) => {
   console.log("Recognized WakeWord:", wakeword);
-  changeColor("gold");
+  changeColor(getParams().accentColor || "gold", true);
   stopProcessing();
   const params = getParams();
   if (params.whisper) {

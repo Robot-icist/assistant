@@ -31,6 +31,7 @@ let threeColor = new THREE.Color(color);
 
 const params = {
   color: color,
+  accentColor: "gold",
   red: threeColor.r,
   green: threeColor.g,
   blue: threeColor.b,
@@ -182,13 +183,20 @@ let guiDisplayed = true;
 
 gui.remember(params);
 
-export const changeColor = (value) => {
+let savedUserColor = params?.color || "deepskyblue";
+let activeAudioCount = 0;
+let processingBaseColor = null;
+
+export const changeColor = (value, temporary = false) => {
   threeColor = new THREE.Color(value);
   color = value;
-  params.color = color;
-  params.red = threeColor.r;
-  params.green = threeColor.g;
-  params.blue = threeColor.b;
+  if (!temporary) {
+    params.color = color;
+    savedUserColor = color;
+    params.red = threeColor.r;
+    params.green = threeColor.g;
+    params.blue = threeColor.b;
+  }
   uniforms.u_red.value = threeColor.r;
   uniforms.u_green.value = threeColor.g;
   uniforms.u_blue.value = threeColor.b;
@@ -207,6 +215,10 @@ const colors = [
 const colorsFolder = gui.addFolder("Colors");
 colorsFolder.add(params, "color", colors).onChange((value) => {
   changeColor(value);
+});
+colorsFolder.add(params, "accentColor", colors).name("accent (voice)").onChange((value) => {
+  params.accentColor = value;
+  colorsFolder.updateDisplay();
 });
 colorsFolder.add(params, "red", 0, 1, 0.1).onChange((value) => {
   uniforms.u_red.value = Number(value);
@@ -424,6 +436,7 @@ export const stopMediaStream = () => {
 };
 
 export async function processWavBuffer(arrayBuffer) {
+  try {
   // Decode the buffer into an AudioBuffer
   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
@@ -440,12 +453,31 @@ export async function processWavBuffer(arrayBuffer) {
   source.connect(analyserClone);
   analyserClone.connect(mediaStreamDestination);
   // source.connect(audioContext.destination); // Connect to output (optional) to hear it
-  let previousColor = color;
+  // Capture the color to revert to, never "white" (handles overlapping audio)
+  if (activeAudioCount === 0) {
+    processingBaseColor = color === "white" ? savedUserColor : color;
+  }
+  activeAudioCount++;
+
+  let finished = false;
+  const doRevert = () => {
+    if (finished) return;
+    finished = true;
+    clearTimeout(safetyTimer);
+    activeAudioCount = Math.max(0, activeAudioCount - 1);
+    if (activeAudioCount > 0) return;
+    const target = params.alwaysOn ? (params.accentColor || "gold") : (savedUserColor || params.color || "deepskyblue");
+    changeColor(target, true);
+  };
+
+  const safetyTimer = setTimeout(() => {
+    try { source.stop(); } catch (e) {}
+    // Give onended a chance to fire; otherwise revert directly
+    setTimeout(doRevert, 100);
+  }, Math.max(1000, ((audioBuffer.duration || 5) + 1) * 1000));
+
   source.onended = () => {
-    // for (let track of microphoneStream.getAudioTracks()) {
-    //   track.enabled = true;
-    // }
-    changeColor(params.alwaysOn ? "gold" : previousColor);
+    doRevert();
   };
 
   // Start playing the audio
@@ -454,7 +486,16 @@ export async function processWavBuffer(arrayBuffer) {
   // for (let track of microphoneStream.getAudioTracks()) {
   //   track.enabled = false;
   // }
-  changeColor("white");
+  changeColor("white", true);
+  } catch (e) {
+    console.error("processWavBuffer failed:", e);
+    if (activeAudioCount > 0) {
+      activeAudioCount = Math.max(0, activeAudioCount - 1);
+      if (activeAudioCount === 0) {
+        changeColor(params.alwaysOn ? (params.accentColor || "gold") : (savedUserColor || params.color || "deepskyblue"), true);
+      }
+    }
+  }
 }
 
 let highFrequencyStartTime = 0;
@@ -549,7 +590,7 @@ WS.addCallback((data, isBinary, type) => {
   let value = data;
   if (!colors.includes(value)) return;
 
-  changeColor(value);
+  changeColor(value, true);
 });
 
-params.alwaysOn ? changeColor("gold") : changeColor("deepskyblue");
+params.alwaysOn ? changeColor(params.accentColor || "gold", true) : changeColor(params.color || savedUserColor || "deepskyblue", false);

@@ -54,6 +54,8 @@ export const defaultModelConfig = {
 export const defaultGlobalConfig = {
   modelUrl: "/models/fem_vroid.vrm",
   windowBounds: { x: 10, y: 10, width: 400, height: 500 },
+  previewBounds: null,
+  previewSize: null,
   modelConfigs: {},
   windowOpacity: 0.95,
 };

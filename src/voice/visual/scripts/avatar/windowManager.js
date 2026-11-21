@@ -56,6 +56,7 @@ export function createAvatarWindow() {
     padding: 0 12px;
     cursor: move;
     -webkit-app-region: drag;
+    touch-action: none;
   `;
   titleBar.innerHTML = `
     <span style="color: #fff; font-size: 13px; font-weight: 500;">VRM Avatar</span>
@@ -121,6 +122,7 @@ export function createAvatarWindow() {
     cursor: se-resize;
     background: linear-gradient(-45deg, transparent 50%, rgba(255,255,255,0.1) 50%);
     z-index: 10;
+    touch-action: none;
   `;
   canvasContainer.appendChild(resizeHandle);
 
@@ -133,6 +135,13 @@ export function createAvatarWindow() {
   setupWindowEvents(state.avatarWindow, titleBar, resizeHandle, canvasContainer);
 
   document.body.appendChild(state.avatarWindow);
+
+  // Auto-start saved head tracking mode (within user gesture so camera permission works)
+  if (state.config.headTrackingMode && state.config.headTrackingMode !== "off" && !state.headTrackingActive) {
+    initHeadTracking(state.config.headTrackingMode).catch((err) => {
+      console.error("[Avatar] Failed to auto-start head tracking:", err);
+    });
+  }
 
   // Initialize Three.js
   initThreeJS(state.avatarCanvas);
@@ -216,8 +225,7 @@ export function createSettingsPanel() {
     <div class="setting-group" style="margin-bottom: 16px;">
       <label style="display: block; margin-bottom: 8px;">Model</label>
       <select id="setting-model" style="width: 100%; padding: 6px; background: #1a1a2e; border: 1px solid #333; border-radius: 4px; color: #eee;">
-        <option value="/models/fem_vroid.vrm" ${state.globalConfig.modelUrl === "/models/fem_vroid.vrm" ? "selected" : ""}>Female (Vroid)</option>
-        <option value="/models/masc_vroid.vrm" ${state.globalConfig.modelUrl === "/models/masc_vroid.vrm" ? "selected" : ""}>Male (Vroid)</option>
+        <option value="">Loading models...</option>
       </select>
     </div>
 
@@ -393,6 +401,9 @@ export function createSettingsPanel() {
   // Populate arm controls
   setTimeout(() => populateArmControls(panel), 0);
 
+  // Populate model list from server
+  setTimeout(() => populateModelSelect(panel.querySelector("#setting-model")), 0);
+
   // Event listeners for settings
   setupSettingsEvents(panel);
 
@@ -434,6 +445,36 @@ export function populateArmControls(panel) {
     
     container.appendChild(group);
   });
+}
+
+export async function populateModelSelect(select) {
+  if (!select) return;
+  const current = state.globalConfig.modelUrl;
+  let models = [];
+  try {
+    const res = await fetch("/api/vrm-models");
+    if (res.ok) models = await res.json();
+  } catch (e) {
+    console.warn("[Avatar] Failed to fetch VRM model list:", e);
+  }
+  if (!Array.isArray(models) || models.length === 0) {
+    // Fallback to known defaults
+    models = [
+      { name: "fem_vroid.vrm", url: "/models/fem_vroid.vrm" },
+      { name: "masc_vroid.vrm", url: "/models/masc_vroid.vrm" },
+    ];
+  }
+  // Ensure the currently selected model is present
+  if (current && !models.some((m) => m.url === current)) {
+    models.unshift({ name: current.split("/").pop(), url: current });
+  }
+  select.innerHTML = models
+    .map((m) => `<option value="${m.url}" ${m.url === current ? "selected" : ""}>${m.name}</option>`)
+    .join("");
+  // Sync state if needed
+  if (!current && models.length) {
+    state.globalConfig.modelUrl = models[0].url;
+  }
 }
 
 export function setupSettingsEvents(panel) {
@@ -828,60 +869,88 @@ export function setupSettingsEvents(panel) {
 }
 
 export function setupWindowEvents(win, titleBar, resizeHandle, canvasContainer) {
+  // Helper to get coordinates from mouse or touch events
+  const getPoint = (e) => {
+    if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (e.changedTouches && e.changedTouches.length) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  };
+
   // Dragging window
   let isMoving = false;
   let moveOffsetX = 0;
   let moveOffsetY = 0;
 
-  titleBar.addEventListener("mousedown", (e) => {
-    if (e.target.tagName === "BUTTON") return;
+  const startMove = (e) => {
+    if (e.target && e.target.tagName === "BUTTON") return;
+    const pt = getPoint(e);
     isMoving = true;
-    moveOffsetX = e.clientX - win.offsetLeft;
-    moveOffsetY = e.clientY - win.offsetTop;
+    moveOffsetX = pt.x - win.offsetLeft;
+    moveOffsetY = pt.y - win.offsetTop;
     win.style.zIndex = String(Number(win.style.zIndex || 10000) + 1);
-  });
+    if (e.cancelable) e.preventDefault();
+  };
+  titleBar.addEventListener("mousedown", startMove);
+  titleBar.addEventListener("touchstart", startMove, { passive: false });
 
-  document.addEventListener("mousemove", (e) => {
+  const onMove = (e) => {
     if (!isMoving) return;
-    win.style.left = `${e.clientX - moveOffsetX}px`;
-    win.style.top = `${e.clientY - moveOffsetY}px`;
-    state.globalConfig.windowBounds.x = e.clientX - moveOffsetX;
-    state.globalConfig.windowBounds.y = e.clientY - moveOffsetY;
-  });
+    const pt = getPoint(e);
+    win.style.left = `${pt.x - moveOffsetX}px`;
+    win.style.top = `${pt.y - moveOffsetY}px`;
+    state.globalConfig.windowBounds.x = pt.x - moveOffsetX;
+    state.globalConfig.windowBounds.y = pt.y - moveOffsetY;
+    if (e.cancelable) e.preventDefault();
+  };
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("touchmove", onMove, { passive: false });
 
-  document.addEventListener("mouseup", () => {
+  const endMove = () => {
     if (isMoving) {
       isMoving = false;
       saveConfig();
     }
-  });
+  };
+  document.addEventListener("mouseup", endMove);
+  document.addEventListener("touchend", endMove);
+  document.addEventListener("touchcancel", endMove);
 
   // Resizing
   let isResizing = false;
-  resizeHandle.addEventListener("mousedown", (e) => {
+  const startResize = (e) => {
     isResizing = true;
-    e.stopPropagation();
-  });
+    if (e.cancelable) e.preventDefault();
+    e.stopPropagation?.();
+  };
+  resizeHandle.addEventListener("mousedown", startResize);
+  resizeHandle.addEventListener("touchstart", startResize, { passive: false });
 
-  document.addEventListener("mousemove", (e) => {
+  const onResize = (e) => {
     if (!isResizing) return;
-    const newWidth = Math.max(300, e.clientX - win.offsetLeft);
-    const newHeight = Math.max(200, e.clientY - win.offsetTop);
+    const pt = getPoint(e);
+    const newWidth = Math.max(300, pt.x - win.offsetLeft);
+    const newHeight = Math.max(200, pt.y - win.offsetTop);
     win.style.width = `${newWidth}px`;
     win.style.height = `${newHeight}px`;
     state.globalConfig.windowBounds.width = newWidth;
     state.globalConfig.windowBounds.height = newHeight;
     // Let flex layout handle canvasContainer sizing - schedule resize (debounced)
     scheduleResize();
-  });
+    if (e.cancelable) e.preventDefault();
+  };
+  document.addEventListener("mousemove", onResize);
+  document.addEventListener("touchmove", onResize, { passive: false });
 
-  document.addEventListener("mouseup", () => {
+  const endResize = () => {
     if (isResizing) {
       isResizing = false;
       saveConfig();
       scheduleResize();
     }
-  });
+  };
+  document.addEventListener("mouseup", endResize);
+  document.addEventListener("touchend", endResize);
+  document.addEventListener("touchcancel", endResize);
 
   // Buttons
   win.querySelector("#avatar-close-btn").addEventListener("click", () => {
@@ -909,7 +978,7 @@ export function setupWindowEvents(win, titleBar, resizeHandle, canvasContainer) 
     state.isSettingsOpen = !state.isSettingsOpen;
     state.settingsPanel.style.display = state.isSettingsOpen ? "block" : "none";
     if (state.isSettingsOpen) {
-      updateSettingsPanel();
+      populateModelSelect(state.settingsPanel.querySelector("#setting-model")).then(() => updateSettingsPanel());
     }
   });
 
