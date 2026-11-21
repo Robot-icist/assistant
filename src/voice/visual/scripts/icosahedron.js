@@ -447,6 +447,7 @@ export async function processWavBuffer(arrayBuffer) {
     // }
     changeColor(params.alwaysOn ? "gold" : previousColor);
   };
+
   // Start playing the audio
   source.start();
 
