@@ -5,6 +5,7 @@ class WebSocketHandler {
     this.callbacks = [];
     this.ws = null;
     this.reconnectInterval = 1000;
+    this.reconnectTimeout = null;
     this.mediaQueue = [];
     this.isPlaying = false;
     this.isReceivingMedia = false;
@@ -16,29 +17,37 @@ class WebSocketHandler {
     this.initWebSocket();
   }
 
+  clearReconnectTimeout() {
+    if (this.reconnectTimeout !== null) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+  }
+
+  scheduleReconnect() {
+    this.clearReconnectTimeout();
+    if (this.reconnect) {
+      console.log("Scheduling reconnect in", this.reconnectInterval, "ms");
+      this.reconnectTimeout = setTimeout(() => this.initWebSocket(), this.reconnectInterval);
+    }
+  }
+
   initWebSocket() {
     this.ws = new WebSocket(this.url);
     this.ws.binaryType = "arraybuffer";
     this.ws.onopen = () => {
       this.events.emit("connected");
-      // new Notification("Websocket", { body: "Connected" });
       console.log("WebSocket connected");
     };
     this.ws.onmessage = (event) => this.handleMessage(event);
     this.ws.onerror = (error) => {
       console.error("WebSocket error:", error);
-      if(this.reconnect){
-        console.log("Reconnecting...");
-        setTimeout(() => this.initWebSocket(), this.reconnectInterval);
-      }
+      this.scheduleReconnect();
     };
     this.ws.onclose = () => {
       this.events.emit("disconnected");
       console.log("WebSocket closed.");
-      if(this.reconnect){
-        console.log("Reconnecting...");
-        setTimeout(() => this.initWebSocket(), this.reconnectInterval);
-      }
+      this.scheduleReconnect();
     };
   }
 
@@ -86,6 +95,7 @@ class WebSocketHandler {
     const byteArray = new Uint8Array(buffer);
 
     if (this.isWav(byteArray)) {
+      // Always enqueue to media queue to never lose audio
       this.enqueueMedia(buffer, "audio/wav");
     } else if (this.isMp4(byteArray)) {
       this.enqueueMedia(buffer, "video/mp4");

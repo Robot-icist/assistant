@@ -27,5 +27,6 @@ app.get("/api/models", async (req, res) => {
     res.status(502).json({ error: error.message });
   }
 });
+app.use("/models", express.static(resolve(publicDir, "models")));
 app.use(express.static(publicDir));
 app.listen(port, () => console.log(`Server running on port ${port}`));

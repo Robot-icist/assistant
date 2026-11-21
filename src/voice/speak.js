@@ -209,7 +209,7 @@ async function processVideoQueue() {
     const fileBuffer = buffer ? buffer : await fs.promises.readFile(resultpath);
     const tempfile = await createTempFileFromBuffer(fileBuffer, "wav");
 
-    if (process.env.SADTALKER === "true") {
+    if (process.env.SADTALKER === "true" && getProcessing()) {
       const data = await sadTalkerProcess.sendCommand({
         drivenAudio: tempfile.path,
         sourceImage: sourceImagePath,

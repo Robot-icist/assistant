@@ -130,7 +130,7 @@ SAMPLE_RATE = 24000
 # then grow the buffer when subsequent chunks arrive slowly so the frontend
 # never starves and streaming stays smooth.
 MIN_BUFFER_DURATION = 1.0  # seconds of audio buffered for the first send
-MAX_BUFFER_DURATION = 6.0  # cap on buffered audio per send
+MAX_BUFFER_DURATION = 30.0  # cap on buffered audio per send
 MIN_BUFFER_SAMPLES = int(SAMPLE_RATE * MIN_BUFFER_DURATION)
 MAX_BUFFER_SAMPLES = int(SAMPLE_RATE * MAX_BUFFER_DURATION)
 BUFFER_GROWTH = 1.5  # how much the buffer target grows between sends
@@ -448,8 +448,8 @@ def start_websocket():
 # Define a proper function for periodic reset
 def periodic_reset():
     while True:
-        time.sleep(6)
-        reset_frequency_after_inactivity(6)
+        time.sleep(30)
+        reset_frequency_after_inactivity(30)
 
 
 # Start the thread with the periodic reset function

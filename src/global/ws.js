@@ -80,14 +80,14 @@ export const startWs = () => {
             const objectsBuffer = await detect_objects_on_image(faceBuffer);
             sendToAll(objectsBuffer, true);
           } else
-          if(isWav(data) && getProcessing()) { //if xtts sends wav chunks
+          if(isWav(data)){ // && getProcessing()) { //if xtts sends wav chunks
             if(!getVideo())
               sendToAll(data, true);
             else{
               await speakWithVideo(`video${new Date().toUTCString()}`, null, data);
             }
           }
-          else if(isImage(data))
+          else if(!isWav(data) && isImage(data))
             await logic(
               getLang() == "fr"
                 ? "Je te connais déjà, Ton seul et unique but est de decrire ce que tu vois dans cette image rapidement et concentre toi sur ça et rien d'autre"

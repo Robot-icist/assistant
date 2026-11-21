@@ -29,7 +29,7 @@ const ollamaInstance = new Ollama({ host: getProvider("ollama").baseUrl });
 // tokens), whose KV cache is ~13 GB and spills onto the CPU. A voice assistant
 // never needs that much history; 4096 tokens keeps everything on the GPU.
 const ollamaNumCtx = Number(process.env.OLLAMA_NUM_CTX || 4096);
-const ollamaNumGpu = Number(process.env.OLLAMA_NUM_GPU || 99);
+const ollamaNumGpu = Number(process.env.OLLAMA_NUM_GPU || 33);
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 

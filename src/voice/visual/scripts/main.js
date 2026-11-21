@@ -22,11 +22,13 @@ export const stopPlaying = () => {
   stopMediaStream();
   document.getElementById("audio")?.remove();
   document.getElementById("video")?.remove();
+  // if (window.Avatar && typeof window.Avatar.stop === "function") window.Avatar.stop();
   WS.playNextMedia();
 };
 
 export const stopProcessing = () => {
   WS.clearMediaQueue();
+  // if (window.Avatar && typeof window.Avatar.clear === "function") window.Avatar.clear();
   stopPlaying();
   stopRecognition();
   document.getElementById("loader")?.remove();
@@ -189,4 +191,55 @@ window.addEventListener("load", () => {
     hideText();
     hideLLMText();
   });
+
+  // Create avatar toggle button
+  createAvatarToggleButton();
 });
+
+function createAvatarToggleButton() {
+  const btn = document.createElement("button");
+  btn.id = "avatar-toggle-btn";
+  btn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>`;
+  btn.title = "Toggle VRM Avatar (A)";
+  btn.style.cssText = `
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #2a2a3e, #1a1a2e);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 9999;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  `;
+  btn.onmouseenter = () => {
+    btn.style.transform = "scale(1.1)";
+    btn.style.boxShadow = "0 6px 24px rgba(0, 0, 0, 0.6)";
+    btn.style.background = "linear-gradient(145deg, #3a3a4e, #2a2a3e)";
+  };
+  btn.onmouseleave = () => {
+    btn.style.transform = "scale(1)";
+    btn.style.boxShadow = "0 4px 16px rgba(0, 0, 0, 0.5)";
+    btn.style.background = "linear-gradient(145deg, #2a2a3e, #1a1a2e)";
+  };
+  btn.onclick = () => {
+    if (window.Avatar) {
+      const win = document.getElementById("avatar-window");
+      if (win && win.style.display !== "none") {
+        window.Avatar.hide();
+      } else {
+        window.Avatar.init();
+      }
+    }
+  };
+  document.body.appendChild(btn);
+}
