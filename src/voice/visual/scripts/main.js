@@ -236,6 +236,8 @@ function createAvatarToggleButton() {
       const win = document.getElementById("avatar-window");
       if (win && win.style.display !== "none") {
         window.Avatar.hide();
+      } else if (win) {
+        window.Avatar.show();
       } else {
         window.Avatar.init();
       }

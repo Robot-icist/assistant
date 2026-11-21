@@ -6,26 +6,48 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 // MediaPipe Face Mesh for reliable face tracking
 let faceMesh = null;
 let faceMeshLoaded = false;
+let faceMeshLoadPromise = null;
 async function loadFaceMesh() {
-  if (faceMeshLoaded) return;
-  try {
-    // Load MediaPipe Face Mesh from CDN
-    const { FaceMesh } = await import("https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1646424919/face_mesh.js");
-    faceMesh = new FaceMesh({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1646424919/${file}`
-    });
-    faceMesh.setOptions({
-      maxNumFaces: 1,
-      refineLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
-    faceMeshLoaded = true;
-    console.log("[Avatar] MediaPipe Face Mesh loaded");
-  } catch (e) {
-    console.error("[Avatar] Failed to load MediaPipe Face Mesh:", e);
-    faceMeshLoaded = false;
-  }
+  if (faceMeshLoaded && faceMesh) return;
+  if (faceMeshLoadPromise) return faceMeshLoadPromise;
+  
+  faceMeshLoadPromise = (async () => {
+    try {
+      // Load MediaPipe Face Mesh via script tag (Closure Library build registers FaceMesh globally)
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js";
+        script.crossOrigin = "anonymous";
+        script.onload = resolve;
+        script.onerror = () => reject(new Error("Failed to load MediaPipe Face Mesh script"));
+        document.head.appendChild(script);
+      });
+      
+      // FaceMesh is now available globally
+      if (typeof FaceMesh === 'undefined') {
+        throw new Error("FaceMesh not found in global scope after script load");
+      }
+      
+      faceMesh = new FaceMesh({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`
+      });
+      faceMesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.3,
+        minTrackingConfidence: 0.3
+      });
+      faceMeshLoaded = true;
+      console.log("[Avatar] MediaPipe Face Mesh loaded");
+    } catch (e) {
+      console.error("[Avatar] Failed to load MediaPipe Face Mesh:", e);
+      faceMeshLoaded = false;
+      faceMeshLoadPromise = null;
+      throw e;
+    }
+  })();
+  
+  return faceMeshLoadPromise;
 }
 
 // ============ Configuration & State ============
@@ -34,6 +56,7 @@ const AVATAR_CONFIG_KEY = "vrm_avatar_config";
 const defaultModelConfig = {
   showHeadOnly: false,
   headTrackingMode: "off",
+  mirrorHorizontalFlip: true,
   position: { x: 0, y: 0, z: 0 },
   rotation: { x: 0, y: Math.PI, z: 0 }, // Default 180° Y rotation to face camera (front)
   scale: 1,
@@ -725,6 +748,7 @@ function updateLipSync(deltaTime) {
   }
   const rms = Math.sqrt(rmsSum / timeData.length);
   const voiceActivity = Math.min(rms * 3.5, 1); // Scale and clamp
+  currentVoiceActivity = voiceActivity; // Update global for face tracking blending
 
   // Detect phonemes from spectrum
   const phonemeScores = detectPhonemesFromSpectrum(freqData);
@@ -820,7 +844,8 @@ function updateIdleAnimations(deltaTime) {
   }
 
   // Subtle head sway - very gentle, natural movement (skip if head tracking is active)
-  if (config.headSwayEnabled && !config.showHeadOnly && config.headTrackingMode === "off") {
+  const trackingIdleAllowed = config.headTrackingMode === "off" || !faceDetected;
+  if (config.headSwayEnabled && !config.showHeadOnly && trackingIdleAllowed) {
     const headBone = vrm.humanoid?.getNormalizedBoneNode("head");
     const neckBone = vrm.humanoid?.getNormalizedBoneNode("neck");
     if (headBone && neckBone) {
@@ -833,7 +858,7 @@ function updateIdleAnimations(deltaTime) {
   }
 
   // Micro movements - very subtle random drift for natural feel
-  if (config.microMovementEnabled && !config.showHeadOnly && config.headTrackingMode === "off") {
+  if (config.microMovementEnabled && !config.showHeadOnly && trackingIdleAllowed) {
     const headBone = vrm.humanoid?.getNormalizedBoneNode("head");
     const neckBone = vrm.humanoid?.getNormalizedBoneNode("neck");
     if (headBone && neckBone) {
@@ -850,8 +875,9 @@ function updateIdleAnimations(deltaTime) {
     }
   }
 
-  // Natural blinking with double-blink support
-  if (config.blinkEnabled) {
+  // Natural blinking with double-blink support (skip during mirror face tracking to avoid fighting)
+  const mirrorTrackingActive = headTrackingActive && config.headTrackingMode === "mirror" && faceDetected;
+  if (config.blinkEnabled && !mirrorTrackingActive) {
     blinkTimer += deltaTime;
     
     if (blinkState === 0) {
@@ -980,6 +1006,22 @@ async function initHeadTracking(mode) {
       faceMesh.onResults(onFaceMeshResults);
     }
     
+    // Disable VRM lookAt autoUpdate so it doesn't fight head tracking
+    if (vrm && vrm.lookAt) {
+      vrm.lookAt.autoUpdate = false;
+    }
+    
+    // Stiffen head/neck spring bones so they don't override manual rotation
+    if (vrm && vrm.springBoneManager) {
+      vrm.springBoneManager.joints.forEach((joint) => {
+        if (joint.name === "head" || joint.name === "neck") {
+          joint.stiffness = 1000;
+          joint.dragForce = 0;
+          joint.gravityPower = 0;
+        }
+      });
+    }
+    
     headTrackingActive = true;
     trackFace();
   } catch (error) {
@@ -987,6 +1029,7 @@ async function initHeadTracking(mode) {
     config.headTrackingMode = "off";
     saveConfig();
     removePreviewOverlay();
+    stopFaceMesh();
   }
 }
 
@@ -998,6 +1041,42 @@ function stopHeadTracking() {
     videoElement.srcObject.getTracks().forEach((track) => track.stop());
     videoElement.srcObject = null;
   }
+  // Reset head/neck bones to neutral
+  if (vrm && vrm.humanoid) {
+    const headBone = vrm.humanoid.getNormalizedBoneNode("head");
+    const neckBone = vrm.humanoid.getNormalizedBoneNode("neck");
+    if (headBone) {
+      headBone.rotation.set(0, 0, 0);
+    }
+    if (neckBone) {
+      neckBone.rotation.set(0, 0, 0);
+    }
+  }
+  // Restore VRM lookAt autoUpdate
+  if (vrm && vrm.lookAt) {
+    vrm.lookAt.autoUpdate = true;
+  }
+  // Restore spring bones
+  if (vrm && vrm.springBoneManager) {
+    vrm.springBoneManager.joints.forEach((joint) => {
+      if (joint.name === "head" || joint.name === "neck") {
+        joint.stiffness = 0.8;
+        joint.dragForce = 0.3;
+        joint.gravityPower = 0.5;
+      }
+    });
+  }
+  // Reset head tracking state
+  headTrackingState = {
+    yaw: 0,
+    pitch: 0,
+    roll: 0,
+    leftEyeOpenness: 1,
+    rightEyeOpenness: 1,
+    mouthOpenness: 0,
+    mouthWidth: 0,
+  };
+  faceDetected = false;
 }
 
 // MediaPipe Face Mesh tracking state
@@ -1026,21 +1105,8 @@ async function trackFace() {
     }
 
     // Process frame with MediaPipe Face Mesh
-    // Send video frame to Face Mesh (it handles drawing internally)
+    // Results are delivered via onFaceMeshResults callback
     await faceMesh.send({ image: videoElement });
-
-    // Get results from the last processed frame
-    if (faceMeshResults && faceMeshResults.multiFaceLandmarks && faceMeshResults.multiFaceLandmarks.length > 0) {
-      const landmarks = faceMeshResults.multiFaceLandmarks[0];
-      
-      // Draw preview with landmarks
-      if (previewContext && previewCanvas) {
-        drawPreviewOverlay(landmarks);
-      }
-
-      // Apply head tracking from landmarks
-      applyHeadTrackingFromLandmarks(landmarks);
-    }
   } catch (e) {
     console.error("[Avatar] trackFace error:", e);
   }
@@ -1054,6 +1120,39 @@ async function trackFace() {
 // MediaPipe Face Mesh callback
 function onFaceMeshResults(results) {
   faceMeshResults = results;
+  if (!headTrackingActive) return;
+  if (results && results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+    const landmarks = results.multiFaceLandmarks[0];
+    faceDetected = true;
+    if (previewContext && previewCanvas) {
+      drawPreviewOverlay(landmarks);
+    }
+    applyHeadTrackingFromLandmarks(landmarks);
+  } else {
+    // No face detected: hide mask, stop following, return to idle
+    faceDetected = false;
+    if (previewContext && previewCanvas) {
+      drawPreviewOverlay(null);
+    }
+    // Reset tracking state and bones so avatar returns to neutral/idle
+    headTrackingState.yaw = 0;
+    headTrackingState.pitch = 0;
+    headTrackingState.roll = 0;
+    headTrackingState.leftEyeOpenness = 1;
+    headTrackingState.rightEyeOpenness = 1;
+    headTrackingState.mouthOpenness = 0;
+    headTrackingState.mouthWidth = 0;
+    if (vrm && vrm.humanoid) {
+      const headBone = vrm.humanoid.getNormalizedBoneNode("head");
+      const neckBone = vrm.humanoid.getNormalizedBoneNode("neck");
+      if (headBone) headBone.rotation.set(0, 0, 0);
+      if (neckBone) neckBone.rotation.set(0, 0, 0);
+    }
+    // Reset mouth expressions
+    if (vrm && vrm.expressionManager) {
+      ["aa", "a", "oh", "o", "ee", "e"].forEach((n) => setExpressionWeight(n, 0));
+    }
+  }
 }
 
 function drawPreviewOverlay(landmarks) {
@@ -1063,14 +1162,14 @@ function drawPreviewOverlay(landmarks) {
   const w = previewCanvas.width;
   const h = previewCanvas.height;
   
-  // Draw video frame (flipped horizontally for mirror effect)
+  // Draw video frame (flipped horizontally for mirror effect - user sees themselves naturally)
   ctx.save();
   ctx.translate(w, 0);
   ctx.scale(-1, 1);
   ctx.drawImage(videoElement, 0, 0, w, h);
   ctx.restore();
   
-  // Draw face landmarks
+  // Draw face landmarks aligned with mirrored video (flip x manually)
   if (landmarks) {
     ctx.strokeStyle = "#4ade80";
     ctx.lineWidth = 1;
@@ -1079,7 +1178,8 @@ function drawPreviewOverlay(landmarks) {
     const keyPoints = [1, 33, 263, 152, 10, 61, 291]; // nose, left eye, right eye, chin, forehead, mouth corners
     keyPoints.forEach(idx => {
       if (landmarks[idx]) {
-        const x = landmarks[idx].x * w;
+        // Flip X coordinate to match flipped video
+        const x = (1 - landmarks[idx].x) * w;
         const y = landmarks[idx].y * h;
         ctx.beginPath();
         ctx.arc(x, y, 3, 0, Math.PI * 2);
@@ -1088,7 +1188,7 @@ function drawPreviewOverlay(landmarks) {
       }
     });
     
-    // Draw face outline (face oval)
+    // Draw face outline (face oval) - flip X coordinates
     const faceOvalIndices = [
       10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400,
       377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109
@@ -1096,7 +1196,7 @@ function drawPreviewOverlay(landmarks) {
     ctx.beginPath();
     faceOvalIndices.forEach((idx, i) => {
       if (landmarks[idx]) {
-        const x = landmarks[idx].x * w;
+        const x = (1 - landmarks[idx].x) * w;
         const y = landmarks[idx].y * h;
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
@@ -1111,10 +1211,161 @@ function drawPreviewOverlay(landmarks) {
     ctx.fillStyle = "#fff";
     ctx.font = "10px monospace";
     ctx.fillText(`Mode: ${config.headTrackingMode}`, 5, h - 5);
+  } else {
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
+    ctx.font = "11px monospace";
+    ctx.fillText("No face detected", 5, h / 2);
+    ctx.fillStyle = "#fff";
+    ctx.font = "10px monospace";
+    ctx.fillText(`Mode: ${config.headTrackingMode}`, 5, h - 5);
   }
 }
 
+// State for smoothing head tracking
+let headTrackingState = {
+  yaw: 0,
+  pitch: 0,
+  roll: 0,
+  leftEyeOpenness: 1,
+  rightEyeOpenness: 1,
+  mouthOpenness: 0,
+  mouthWidth: 0,
+};
+
+// Current voice activity level (0-1) from lip sync, for blending with face tracking
+let currentVoiceActivity = 0;
+// Whether a face is currently detected by head tracking
+let faceDetected = false;
+
 function applyHeadTrackingFromLandmarks(landmarks) {
+  // MediaPipe Face Mesh landmark indices:
+  // 1 = nose tip, 33 = left eye inner corner, 263 = right eye inner corner
+  // 152 = chin, 10 = forehead, 61 = mouth left, 291 = mouth right
+  // 168 = nose bridge, 197 = nose bridge upper
+  // 33/133 = left eye, 362/263 = right eye
+  // For eyes: 159, 145 (left upper/lower), 386, 374 (right upper/lower)
+  // For mouth: 13, 14 (upper/lower lip), 78, 308 (mouth corners)
+  
+  const noseTip = landmarks[1];
+  const leftEyeInner = landmarks[33];
+  const rightEyeInner = landmarks[263];
+  const leftEyeOuter = landmarks[133];
+  const rightEyeOuter = landmarks[362];
+  const chin = landmarks[152];
+  const forehead = landmarks[10];
+  const mouthLeft = landmarks[61];
+  const mouthRight = landmarks[291];
+  // Eye openness landmarks
+  const leftEyeUpper = landmarks[159];
+  const leftEyeLower = landmarks[145];
+  const rightEyeUpper = landmarks[386];
+  const rightEyeLower = landmarks[374];
+  // Mouth openness landmarks
+  const mouthUpper = landmarks[13];
+  const mouthLower = landmarks[14];
+  const mouthCornerLeft = landmarks[78];
+  const mouthCornerRight = landmarks[308];
+
+  if (!noseTip || !leftEyeInner || !rightEyeInner) return;
+
+  // Calculate head pose from landmarks
+  // Eye center as reference for head center
+  const eyeCenterX = (leftEyeInner.x + rightEyeInner.x) * 0.5;
+  const eyeCenterY = (leftEyeInner.y + rightEyeInner.y) * 0.5;
+  
+  // Nose tip relative to eye center gives us head rotation
+  const noseOffsetX = noseTip.x - eyeCenterX;
+  const noseOffsetY = noseTip.y - eyeCenterY;
+  
+  // Calculate head rotation angles
+  // X rotation (pitch): nose up/down relative to eyes (positive = looking up)
+  // Y rotation (yaw): nose left/right relative to eyes (positive = looking right)
+  // Z rotation (roll): eye line tilt
+  
+  const eyeVectorX = rightEyeInner.x - leftEyeInner.x;
+  const eyeVectorY = rightEyeInner.y - leftEyeInner.y;
+  const eyeDistance = Math.sqrt(eyeVectorX * eyeVectorX + eyeVectorY * eyeVectorY);
+  
+  // Normalize nose offset by eye distance for scale-invariant rotation
+  // MediaPipe coordinates: x increases right, y increases down
+  // Three.js: pitch positive = up (nose up), yaw positive = right (nose right), roll positive = clockwise
+  // Subtract neutral offset for pitch (nose is naturally below eyes)
+  const neutralPitch = 0.5;
+  const pitch = -((noseOffsetY / eyeDistance) - neutralPitch) * 1.5;  // Negative because MediaPipe Y down = Three.js pitch up
+  const yaw = (noseOffsetX / eyeDistance) * 1.5;     // MediaPipe X right = Three.js yaw right
+  
+  // Roll from eye line tilt
+  const roll = Math.atan2(eyeVectorY, eyeVectorX);
+  
+  // Calculate eye openness (0 = closed, 1 = open)
+  // Use a slightly smaller divisor so partially open eyes still read as open
+  let leftEyeOpenness = 1;
+  let rightEyeOpenness = 1;
+  if (leftEyeUpper && leftEyeLower && leftEyeInner && leftEyeOuter) {
+    const leftEyeHeight = Math.abs(leftEyeLower.y - leftEyeUpper.y);
+    const leftEyeWidth = Math.max(1e-6, Math.hypot(leftEyeOuter.x - leftEyeInner.x, leftEyeOuter.y - leftEyeInner.y));
+    leftEyeOpenness = THREE.MathUtils.clamp(leftEyeHeight / (leftEyeWidth * 0.2), 0, 1);
+  }
+  if (rightEyeUpper && rightEyeLower && rightEyeInner && rightEyeOuter) {
+    const rightEyeHeight = Math.abs(rightEyeLower.y - rightEyeUpper.y);
+    const rightEyeWidth = Math.max(1e-6, Math.hypot(rightEyeOuter.x - rightEyeInner.x, rightEyeOuter.y - rightEyeInner.y));
+    rightEyeOpenness = THREE.MathUtils.clamp(rightEyeHeight / (rightEyeWidth * 0.2), 0, 1);
+  }
+  
+  // Calculate mouth openness and width
+  let mouthOpenness = 0;
+  let mouthWidth = 0;
+  if (mouthUpper && mouthLower && mouthCornerLeft && mouthCornerRight) {
+    const mouthHeight = Math.abs(mouthLower.y - mouthUpper.y);
+    const mouthCornerDist = Math.abs(mouthCornerRight.x - mouthCornerLeft.x);
+    mouthOpenness = THREE.MathUtils.clamp(mouthHeight / (eyeDistance * 0.3), 0, 1);
+    mouthWidth = THREE.MathUtils.clamp(mouthCornerDist / (eyeDistance * 0.5), 0, 1);
+  }
+  
+  // Sensitivity and smoothing
+  const sensitivity = 1.5;
+  const smoothing = 0.2;
+  
+  let targetYaw, targetPitch, targetRoll;
+  
+  if (config.headTrackingMode === "follow") {
+    // Follow mode: TRACK the user's head POSITION in the frame (like a camera
+    // following a subject). Do NOT reproduce the user's head orientation/tilt.
+    // Drive yaw/pitch from where the face is relative to frame center, not from
+    // the head-pose angles. Roll is zeroed so head tilt is never copied.
+    const faceCenterX = noseTip.x; // 0..1, 0.5 = center
+    const faceCenterY = noseTip.y;
+    // Reduced gains so the avatar gazes at the user instead of overshooting
+    // when the face moves toward the edge of the frame.
+    targetYaw = THREE.MathUtils.clamp((0.5 - faceCenterX) * 1.0, -0.5, 0.5);
+    targetPitch = THREE.MathUtils.clamp(-(faceCenterY - 0.5) * 0.8, -0.45, 0.45);
+    // Gentle roll: tilt slightly on horizontal movement, plus a small vertical
+    // component so the head feels alive when looking up/down.
+    targetRoll = (0.5 - faceCenterX) * 0.25 + (faceCenterY - 0.5) * 0.15;
+  } else if (config.headTrackingMode === "mirror") {
+    // Mirror mode: avatar copies user's head movement.
+    // mirrorHorizontalFlip=true keeps the natural mirror reversal
+    // (look right -> avatar looks left). Set false to reverse it.
+    const yawSign = config.mirrorHorizontalFlip ? 1 : -1;
+    // Reduced gains to avoid overshooting; clamp to keep within natural range
+    targetYaw = THREE.MathUtils.clamp(yaw * 0.8 * yawSign, -0.7, 0.7);
+    targetPitch = THREE.MathUtils.clamp(pitch * 0.6, -0.6, 0.6);
+    // Fix reversed roll: tilting neck left should tilt avatar left
+    targetRoll = THREE.MathUtils.clamp(-roll * 0.4, -0.5, 0.5);
+  }
+  
+  // Apply smoothing to head tracking state (NOT targetRotation!)
+  headTrackingState.yaw = THREE.MathUtils.lerp(headTrackingState.yaw, targetYaw, smoothing);
+  headTrackingState.pitch = THREE.MathUtils.lerp(headTrackingState.pitch, targetPitch, smoothing);
+  headTrackingState.roll = THREE.MathUtils.lerp(headTrackingState.roll, targetRoll, smoothing);
+  headTrackingState.leftEyeOpenness = THREE.MathUtils.lerp(headTrackingState.leftEyeOpenness, leftEyeOpenness, 0.3);
+  headTrackingState.rightEyeOpenness = THREE.MathUtils.lerp(headTrackingState.rightEyeOpenness, rightEyeOpenness, 0.3);
+  headTrackingState.mouthOpenness = THREE.MathUtils.lerp(headTrackingState.mouthOpenness, mouthOpenness, 0.3);
+  headTrackingState.mouthWidth = THREE.MathUtils.lerp(headTrackingState.mouthWidth, mouthWidth, 0.3);
+}
+
+// Apply head tracking to bones in render loop (called after vrm.update())
+function applyHeadTrackingToBones() {
   if (!vrm || !vrm.humanoid) return;
 
   const headBone = vrm.humanoid.getNormalizedBoneNode("head");
@@ -1122,84 +1373,76 @@ function applyHeadTrackingFromLandmarks(landmarks) {
 
   if (!headBone || !neckBone) return;
 
-  // MediaPipe Face Mesh landmark indices:
-  // 1 = nose tip, 33 = left eye inner corner, 263 = right eye inner corner
-  // 152 = chin, 10 = forehead, 61 = mouth left, 291 = mouth right
-  // 168 = nose bridge, 197 = nose bridge upper
-  // 33/133 = left eye, 362/263 = right eye
-  
-  const noseTip = landmarks[1];
-  const leftEye = landmarks[33];
-  const rightEye = landmarks[263];
-  const chin = landmarks[152];
-  const forehead = landmarks[10];
-  const mouthLeft = landmarks[61];
-  const mouthRight = landmarks[291];
+  // Apply smoothed head tracking state to bones
+  // This runs every frame in render loop, after vrm.update(), so it takes precedence
+  headBone.rotation.y = headTrackingState.yaw;
+  headBone.rotation.x = headTrackingState.pitch;
+  headBone.rotation.z = headTrackingState.roll;
+  neckBone.rotation.y = headTrackingState.yaw * 0.3;
+  neckBone.rotation.x = headTrackingState.pitch * 0.3;
+  neckBone.rotation.z = headTrackingState.roll * 0.3;
 
-  if (!noseTip || !leftEye || !rightEye) return;
-
-  // Calculate head pose from landmarks
-  // Eye center as reference for head center
-  const eyeCenterX = (leftEye.x + rightEye.x) * 0.5;
-  const eyeCenterY = (leftEye.y + rightEye.y) * 0.5;
-  
-  // Nose tip relative to eye center gives us head rotation
-  const noseOffsetX = noseTip.x - eyeCenterX;
-  const noseOffsetY = noseTip.y - eyeCenterY;
-  
-  // Calculate head rotation angles
-  // X rotation (pitch): nose up/down relative to eyes
-  // Y rotation (yaw): nose left/right relative to eyes
-  // Z rotation (roll): eye line tilt
-  
-  const eyeVectorX = rightEye.x - leftEye.x;
-  const eyeVectorY = rightEye.y - leftEye.y;
-  const eyeDistance = Math.sqrt(eyeVectorX * eyeVectorX + eyeVectorY * eyeVectorY);
-  
-  // Normalize nose offset by eye distance for scale-invariant rotation
-  const pitch = (noseOffsetY / eyeDistance) * 2.0;  // Up/down
-  const yaw = (noseOffsetX / eyeDistance) * 2.0;    // Left/right
-  
-  // Roll from eye line tilt
-  const roll = Math.atan2(eyeVectorY, eyeVectorX);
-  
-  // Sensitivity and smoothing
-  const sensitivity = 1.0;
-  const smoothing = 0.15;
-  
-  let targetYaw, targetPitch, targetRoll;
-  
-  if (config.headTrackingMode === "follow") {
-    // Follow mode: avatar looks AT the user (opposite of user's head movement)
-    // When user turns head left, avatar turns head right to maintain eye contact
-    targetYaw = -yaw * sensitivity;
-    targetPitch = -pitch * sensitivity * 0.7;
-    targetRoll = -roll * sensitivity * 0.5;
-  } else if (config.headTrackingMode === "mirror") {
-    // Mirror mode: avatar copies user's head movement exactly
-    targetYaw = yaw * sensitivity;
-    targetPitch = pitch * sensitivity * 0.7;
-    targetRoll = roll * sensitivity * 0.5;
+  // Apply face expressions for mirror mode
+  if (config.headTrackingMode === "mirror" && vrm.expressionManager) {
+    applyFaceTrackingToExpressions();
   }
-  
-  // Apply smoothing
-  targetRotation.y = THREE.MathUtils.lerp(targetRotation.y, targetYaw, smoothing);
-  targetRotation.x = THREE.MathUtils.lerp(targetRotation.x, targetPitch, smoothing);
-  targetRotation.z = THREE.MathUtils.lerp(targetRotation.z, targetRoll, smoothing);
 
-  // Apply to bones
-  headBone.rotation.y = targetRotation.y;
-  headBone.rotation.x = targetRotation.x;
-  headBone.rotation.z = targetRotation.z;
-  neckBone.rotation.y = targetRotation.y * 0.3;
-  neckBone.rotation.x = targetRotation.x * 0.3;
-  neckBone.rotation.z = targetRotation.z * 0.3;
-
-  // Also update lookAt target for eye tracking
-  if (vrm.lookAt && vrm.lookAt.target) {
+  // Update lookAt target for follow mode
+  if (config.headTrackingMode === "follow" && vrm.lookAt && vrm.lookAt.target) {
     if (vrm.lookAt.target instanceof THREE.Vector3) {
-      // Look at target follows nose position
-      vrm.lookAt.target.set(noseOffsetX * 3, -noseOffsetY * 2, 2);
+      // Look at target follows head orientation
+      vrm.lookAt.target.set(
+        Math.sin(headTrackingState.yaw) * 0.8,
+        -headTrackingState.pitch * 0.6,
+        2
+      );
+    }
+  }
+}
+
+function setExpressionWeight(name, value) {
+  if (!vrm || !vrm.expressionManager) return;
+  const e = vrm.expressionManager.getExpression(name);
+  if (e) e.weight = value;
+}
+
+function applyFaceTrackingToExpressions() {
+  if (!vrm || !vrm.expressionManager) return;
+  
+  // Map eye openness to blink expressions (always apply in mirror mode)
+  const avgEyeOpenness = (headTrackingState.leftEyeOpenness + headTrackingState.rightEyeOpenness) * 0.5;
+  const blinkAmount = THREE.MathUtils.clamp(1 - avgEyeOpenness, 0, 1);
+  
+  setExpressionWeight("blink", blinkAmount);
+  const leftBlink = THREE.MathUtils.clamp(1 - headTrackingState.leftEyeOpenness, 0, 1);
+  const rightBlink = THREE.MathUtils.clamp(1 - headTrackingState.rightEyeOpenness, 0, 1);
+  setExpressionWeight("blinkLeft", leftBlink);
+  setExpressionWeight("blinkRight", rightBlink);
+  setExpressionWeight("blink_l", leftBlink);
+  setExpressionWeight("blink_r", rightBlink);
+  
+  // Map mouth openness to vowel expressions
+  // Only apply face tracking mouth when lip sync is NOT active (low voice activity)
+  const voiceThreshold = 0.15;
+  const applyMouthTracking = currentVoiceActivity < voiceThreshold;
+  
+  if (applyMouthTracking) {
+    if (headTrackingState.mouthOpenness > 0.1) {
+      const open = headTrackingState.mouthOpenness;
+      const wide = headTrackingState.mouthWidth;
+      setExpressionWeight("aa", open * 0.8);
+      setExpressionWeight("a", open * 0.8);
+      setExpressionWeight("oh", open * 0.5);
+      setExpressionWeight("o", open * 0.5);
+      setExpressionWeight("ee", wide * 0.6);
+      setExpressionWeight("e", wide * 0.4);
+    } else {
+      setExpressionWeight("aa", 0);
+      setExpressionWeight("a", 0);
+      setExpressionWeight("oh", 0);
+      setExpressionWeight("o", 0);
+      setExpressionWeight("ee", 0);
+      setExpressionWeight("e", 0);
     }
   }
 }
@@ -1207,11 +1450,23 @@ function applyHeadTrackingFromLandmarks(landmarks) {
 // Cleanup function for face mesh
 function stopFaceMesh() {
   if (faceMesh) {
-    faceMesh.close();
+    try { faceMesh.close(); } catch (e) {}
     faceMesh = null;
     faceMeshLoaded = false;
   }
+  faceMeshLoadPromise = null;
   faceMeshResults = null;
+  // Reset head tracking state
+  headTrackingState = {
+    yaw: 0,
+    pitch: 0,
+    roll: 0,
+    leftEyeOpenness: 1,
+    rightEyeOpenness: 1,
+    mouthOpenness: 0,
+    mouthWidth: 0,
+  };
+  faceDetected = false;
 }
 
 // ============ Three.js Scene Setup ============
@@ -1411,6 +1666,11 @@ function animate() {
 
       // Apply arm positions AFTER vrm.update() so they're not overwritten by spring bones/animations
       applyArmPositions();
+
+      // Apply head tracking to bones AFTER vrm.update() so it takes precedence over lookAt/spring bones
+      if (headTrackingActive && config.headTrackingMode !== "off" && faceDetected) {
+        applyHeadTrackingToBones();
+      }
 
       // Always sync scene position and rotation to targetPosition/targetRotation
       // (targetPosition/targetRotation are kept in sync with config via sliders/buttons/loadVRM)
@@ -1668,6 +1928,13 @@ function createSettingsPanel() {
         <option value="follow" ${config.headTrackingMode === "follow" ? "selected" : ""}>Follow Face</option>
         <option value="mirror" ${config.headTrackingMode === "mirror" ? "selected" : ""}>Mirror Face</option>
       </select>
+    </div>
+
+    <div class="setting-group" style="margin-bottom: 16px;">
+      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+        <input type="checkbox" id="setting-mirror-flip" ${config.mirrorHorizontalFlip ? "checked" : ""} style="accent-color: #4ade80;">
+        <span>Mirror Horizontal (flip) — mirror mode only</span>
+      </label>
     </div>
 
     <div class="setting-group" style="margin-bottom: 16px;">
@@ -2051,6 +2318,11 @@ function setupSettingsEvents(panel) {
   // Head tracking
   panel.querySelector("#setting-head-tracking").addEventListener("change", (e) => {
     initHeadTracking(e.target.value);
+  });
+
+  panel.querySelector("#setting-mirror-flip").addEventListener("change", (e) => {
+    config.mirrorHorizontalFlip = e.target.checked;
+    saveConfig();
   });
 
   // Model
@@ -2770,11 +3042,15 @@ document.addEventListener("DOMContentLoaded", () => {
 // Keyboard shortcut: 'A' key to toggle avatar window
 document.addEventListener("keydown", (e) => {
   if (e.key === "a" || e.key === "A") {
-    if (!e.ctrlKey && !e.metaKey && !e.altKey && document.activeElement.tagName !== "INPUT") {
+    const activeTag = document.activeElement ? document.activeElement.tagName : "";
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && activeTag !== "INPUT" && activeTag !== "TEXTAREA" && activeTag !== "SELECT") {
       e.preventDefault();
       if (window.Avatar) {
-        if (document.getElementById("avatar-window")) {
+        const win = document.getElementById("avatar-window");
+        if (win && win.style.display !== "none") {
           window.Avatar.hide();
+        } else if (win) {
+          window.Avatar.show();
         } else {
           window.Avatar.init();
         }
